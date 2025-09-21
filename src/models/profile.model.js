@@ -38,7 +38,7 @@ const profileSchema = new Schema
             type: String,
             trim: true
         },
-        preferredRole: {
+        preferredRole: { // preferred working field
             type: String,
             trim: true
         },
