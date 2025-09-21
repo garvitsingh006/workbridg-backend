@@ -23,7 +23,7 @@ const generateAccessAndRefreshToken = async(userId) => {
 }
 
 const registerUser = asyncHandler(async (req, res) => {
-    const {username, fullName, email, password} = req.body
+    const {username, fullName, email, password, role} = req.body
 
     // Check if fields are empty
     if (
@@ -43,7 +43,8 @@ const registerUser = asyncHandler(async (req, res) => {
         username: username.toLowerCase(),
         fullName,
         email,
-        password
+        password,
+        role
     })
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken");

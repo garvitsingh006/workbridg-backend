@@ -9,12 +9,12 @@ const projectSchema = new Schema(
         },
         description: {
             type: String,
+            required: true,
             trim: true,
         },
         assignedTo: {
             type: Schema.Types.ObjectId,
             ref: "User", // the freelancer
-            required: true,
         },
         createdBy: {
             type: Schema.Types.ObjectId,
@@ -23,8 +23,8 @@ const projectSchema = new Schema(
         },
         status: {
             type: String,
-            enum: ["pending", "in-progress", "completed", "cancelled"],
-            default: "pending",
+            enum: ["unassigned", "pending", "in-progress", "completed", "cancelled"],
+            default: "unassigned",
         },
         deadline: {
             type: Date,

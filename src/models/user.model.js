@@ -31,7 +31,7 @@ const userSchema = new Schema(
         },
         role: {
             type: String,
-            enum: ["Freelancer", "Client"],
+            enum: ["freelancer", "client"],
             default: null
         },
         refreshToken: {

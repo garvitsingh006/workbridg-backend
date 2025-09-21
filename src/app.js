@@ -17,7 +17,10 @@ app.use(express.urlencoded({extended: true, limit: "10mb"}));
 // import routes
 import userRouter from "./routes/user.route.js"
 import profileRouter from  "./routes/profile.route.js"
+import projectRouter from "./routes/project.route.js"
 app.use("/api/v1/users", userRouter)
-app.use("/api/v1/profile", profileRouter)
+app.use("/api/v1/profiles", profileRouter)
+app.use("/api/v1/projects", projectRouter)
+// app.use("/api/v1/admin/projects/pending", "something") // TODO: ADMIN WORK!!!
 
 export {app};
