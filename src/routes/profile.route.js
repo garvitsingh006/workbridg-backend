@@ -6,7 +6,7 @@ import { getProfile, setProfile } from "../controllers/profile.controller.js";
 const router = Router();
 
 // Public: anyone can view by username
-router.route("/:username").get(getProfile);
+router.route("/:username").get(verifyJWT, getProfile);
 
 // Private: only logged-in user can update their own profile
 router.route("/me").post(
