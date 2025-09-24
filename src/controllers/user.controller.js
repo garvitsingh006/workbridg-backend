@@ -130,4 +130,84 @@ const meUser = asyncHandler(async (req, res) => {
     )
 })
 
-export { registerUser, loginUser, logoutUser, meUser}
+const getAllUsers = asyncHandler(async (req, res) => {
+    // if (req.user.role != 'admin') {
+    //     throw new ApiError(403, 'Only admins can fetch all the user details!')
+    // }
+    const users = await User.find({}, 'fullName username');
+
+    res.status(200).json({
+        success: true,
+        users,
+        message: 'All users fetched successfully',
+    });
+})
+
+const approveProjectForUser = asyncHandler(async (req, res) => {
+    if (req.user.role !== 'admin') {
+        throw new ApiError(403, "Only admins can accept projects for users");
+    }
+
+    const userId = req.params.userId;
+    const { projectId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (!user.approvedProjects.includes(projectId)) {
+        user.approvedProjects.push(projectId);
+        user.rejectedProjects = user.rejectedProjects.filter(
+            pid => pid.toString() !== projectId
+        );
+        await user.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, user.approvedProjects, "Project accepted"));
+});
+
+const rejectProjectForUser = asyncHandler(async (req, res) => {
+    if (req.user.role !== 'admin') {
+        throw new ApiError(403, "Only admins can reject projects for users");
+    }
+
+    const userId = req.params.userId;
+    const { projectId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (!user.rejectedProjects.includes(projectId)) {
+        user.rejectedProjects.push(projectId);
+        user.approvedProjects = user.approvedProjects.filter(
+            pid => pid.toString() !== projectId
+        );
+        await user.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, user.rejectedProjects, "Project rejected"));
+});
+
+// Get accepted projects for a user (populated)
+const getApprovedProjects = asyncHandler(async (req, res) => {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId).populate('approvedProjects');
+    if (!user) throw new ApiError(404, "User not found");
+
+    res.status(200).json(new ApiResponse(200, user.approvedProjects, "Accepted projects fetched"));
+});
+
+// Get rejected projects for a user (populated)
+const getRejectedProjects = asyncHandler(async (req, res) => {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId).populate('rejectedProjects');
+    if (!user) throw new ApiError(404, "User not found");
+
+    res.status(200).json(new ApiResponse(200, user.rejectedProjects, "Rejected projects fetched"));
+});
+
+export { registerUser, loginUser, logoutUser, meUser, getAllUsers, approveProjectForUser,
+    rejectProjectForUser,
+    getApprovedProjects,
+    getRejectedProjects}

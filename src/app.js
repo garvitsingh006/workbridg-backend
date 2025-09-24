@@ -13,6 +13,14 @@ app.use(express.json("limit: 10mb"));
 app.use(cookieParser());
 app.use(express.static("public"));
 app.use(express.urlencoded({extended: true, limit: "10mb"}));
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+    });
+});
+
 
 // import routes
 import userRouter from "./routes/user.route.js"

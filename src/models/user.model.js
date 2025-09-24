@@ -31,9 +31,15 @@ const userSchema = new Schema(
         },
         role: {
             type: String,
-            enum: ["freelancer", "client"],
+            enum: ["freelancer", "client", 'admin'],
             default: null
         },
+        approvedProjects: [
+            { type: Schema.Types.ObjectId, ref: "Project" }
+        ],
+        rejectedProjects: [
+            { type: Schema.Types.ObjectId, ref: "Project" }
+        ],
         refreshToken: {
             type: String,
         },

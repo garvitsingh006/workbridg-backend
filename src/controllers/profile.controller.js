@@ -146,36 +146,40 @@ const setProfile = asyncHandler(async (req, res) => {
 });
 
 const getProfile = asyncHandler(async (req, res) => {
-    const username = req.params.username;
-
-    const user = await User.findOne({ username: username });
-    if (!user) throw new ApiError(404, "User not found!");
-
-    // find user role first
-    const { role } = user;
-    const ProfileModel =
-        role === "freelancer" ? FreelancerProfile : ClientProfile;
-
-    const profile = await ProfileModel.findOne({ user: user._id }).populate({
-        path: "user",
-        select: "username role fullName",
-    });
-
-    if (!profile || !profile.user) {
-        throw new ApiError(404, "Profile not found!");
+    try {
+        const username = req.params.username;
+    
+        const user = await User.findOne({ username: username });
+        if (!user) throw new ApiError(404, "User not found!");
+    
+        // find user role first
+        const { role } = user;
+        const ProfileModel =
+            role === "freelancer" ? FreelancerProfile : ClientProfile;
+    
+        const profile = await ProfileModel.findOne({ user: user._id }).populate({
+            path: "user",
+            select: "username role fullName",
+        });
+    
+        if (!profile || !profile.user) {
+            throw new ApiError(404, "Profile not found!");
+        }
+    
+        let publicProfile = profile.toObject();
+    
+        if (role === "freelancer") {
+            publicProfile.workExperience = profile.workExperience.map((w) => ({
+                title: w.title,
+                company: w.company,
+                years: w.years,
+            }));
+        }
+    
+        return res.status(200).json(new ApiResponse(200, publicProfile));
+    } catch (error) {
+        return res.status(502).json({message: "From outside try catch block"})
     }
-
-    let publicProfile = profile.toObject();
-
-    if (role === "freelancer") {
-        publicProfile.workExperience = profile.workExperience.map((w) => ({
-            title: w.title,
-            company: w.company,
-            years: w.years,
-        }));
-    }
-
-    return res.status(200).json(new ApiResponse(200, publicProfile));
 });
 
 export { getProfile, setProfile };
