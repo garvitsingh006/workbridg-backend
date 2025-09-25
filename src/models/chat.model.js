@@ -2,40 +2,55 @@ import mongoose, { Schema } from "mongoose";
 
 const messageSchema = new Schema(
     {
-        sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        sender: { _id: {type: Schema.Types.ObjectId, ref: "User"}, username: {type: String} },
         content: { type: String, required: true },
         timestamp: { type: Date, default: Date.now },
         read: { type: Boolean, default: false },
+        type: { type: String, enum: ["user", "system"], default: "user" },
+        event: { type: String }, // System event like "admin_joined", "user_added"
     },
     { _id: false }
 );
 
 const chatSchema = new Schema(
     {
-        // Type can be 'individual' (admin <> user) or 'project' (freelancer <> client for a project)
-        type: { type: String, enum: ["individual", "project"], required: true },
-
-        // For 'individual' chat, participants are admin + user
-        // For 'project' chat, participants are freelancer + client
+        type: {
+            type: String,
+            enum: ["individual", "project", "group"],
+            required: true,
+        },
+        name: { type: String }, // Optional for group chats
+        description: { type: String }, // Optional
+        createdBy: { type: Schema.Types.ObjectId, ref: "User" }, // For group chats
         participants: [
             { type: Schema.Types.ObjectId, ref: "User", required: true },
         ],
-
-        // (only for project chats)
-        project: { type: Schema.Types.ObjectId, ref: "Project" },
-
+        project: { type: Schema.Types.ObjectId, ref: "Project" }, // For project/project group
         messages: [messageSchema],
-        status: {
-            type: String,
-            enum: ["pending", "approved", "with_admin"],
-            default: "pending",
-        },
-        adminAdded: { type: Boolean, default: false }, // Example flag for admin join
+        adminAdded: { type: Boolean, default: false },
     },
-    {
-        timestamps: true,
-    }
+    { timestamps: true }
 );
+
+// Add participant(s)
+chatSchema.methods.addParticipant = async function (userId) {
+    if (!this.participants.includes(userId)) {
+        this.participants.push(userId);
+        await this.save();
+    }
+    return this;
+};
+
+// Add system message
+chatSchema.methods.addSystemMessage = async function (content, event) {
+    this.messages.push({
+        content,
+        type: "system",
+        event,
+        timestamp: new Date(),
+    });
+    await this.save();
+};
 
 // Add to your existing chatSchema definition
 
@@ -48,8 +63,14 @@ chatSchema.methods.addMessage = async function (messageData) {
 // Instance method: Mark all messages as read for a user (who is not the sender)
 chatSchema.methods.markMessagesRead = async function (userId) {
     this.messages.forEach((msg) => {
-        if (msg.sender.toString() !== userId.toString()) {
+        // Only mark as read if sender exists and is not the current user
+        if (msg.sender && msg.sender.toString() !== userId.toString()) {
             msg.read = true;
+        }
+        // Optionally, you can decide how to handle system messages here
+        // For example, you might want to mark them as read for everyone
+        if (!msg.sender) {
+            msg.read = true; // or leave as is, depending on your needs
         }
     });
     await this.save();
@@ -103,16 +124,15 @@ chatSchema.statics.findProjectChat = function (
     });
 };
 
-chatSchema.statics.addAdminToChat = async function(chatId, adminId) {
-  const chat = await this.findById(chatId);
-  if (!chat) throw new Error('Chat not found');
-  if (!chat.participants.includes(adminId)) {
-    chat.participants.push(adminId);
-    chat.status = "with_admin";
-    chat.adminAdded = true;
-    await chat.save();
-  }
-  return chat;
+chatSchema.statics.addAdminToChat = async function (chatId, adminId) {
+    const chat = await this.findById(chatId);
+    if (!chat) throw new Error("Chat not found");
+    if (!chat.participants.includes(adminId)) {
+        chat.participants.push(adminId);
+        chat.adminAdded = true;
+        await chat.save();
+    }
+    return chat;
 };
 
 export const Chat = mongoose.model("Chat", chatSchema);

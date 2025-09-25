@@ -2,6 +2,7 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {User} from "../models/user.model.js"
+import { Project } from "../models/project.model.js"
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -152,7 +153,9 @@ const approveProjectForUser = asyncHandler(async (req, res) => {
     const { projectId } = req.body;
 
     const user = await User.findById(userId);
+    const project = await Project.findById(projectId)
     if (!user) throw new ApiError(404, "User not found");
+    if (!project) throw new ApiError(404, "Project not found");
 
     if (!user.approvedProjects.includes(projectId)) {
         user.approvedProjects.push(projectId);

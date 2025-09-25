@@ -10,7 +10,7 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "User must be a client!");
     }
 
-    const { title, description } = req.body;
+    const { title, description, deadline } = req.body;
 
     if (title.trim() === "" || description.trim() === "") {
         throw new ApiError(400, "Title and/or Description are required!");
@@ -19,6 +19,7 @@ const newProject = asyncHandler(async (req, res) => {
     const project = await Project.create({
         title,
         description,
+        deadline,
         createdBy: userId,
     });
 
@@ -138,6 +139,10 @@ const updateProject = asyncHandler(async (req, res) => {
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
+    
+    if (userRole !== "client" && userRole != "admin") {
+        throw new ApiError(403, "Only clients and admins can update projects");
+    }
 
     if (
         userRole === "client" &&
@@ -149,9 +154,6 @@ const updateProject = asyncHandler(async (req, res) => {
         );
     }
 
-    if (userRole !== "client" && userRole !== "admin") {
-        throw new ApiError(403, "Only clients or admins can update projects");
-    }
 
     const { title, description, deadline, status } = req.body;
 

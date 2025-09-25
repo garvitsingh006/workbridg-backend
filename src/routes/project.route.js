@@ -20,4 +20,5 @@ router.route("/:projectId/apply").post(verifyJWT, applyToProject)
 router.route("/:projectId/applications").get(verifyJWT, getProjectApplications)
 router.route("/:projectId/applications/:userId").delete(verifyJWT, deleteProjectApplication);
 
+
 export default router;
