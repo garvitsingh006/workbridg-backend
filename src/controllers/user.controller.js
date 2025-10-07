@@ -3,6 +3,7 @@ import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {User} from "../models/user.model.js"
 import { Project } from "../models/project.model.js"
+import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -22,6 +23,46 @@ const generateAccessAndRefreshToken = async(userId) => {
         );
     }
 }
+
+const refreshAccessToken = asyncHandler(async(req,res) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    if (!incomingRefreshToken) {
+        throw new ApiError(401, "Unauthorized Request")
+    }
+
+    const decodedToken = jwt.verify(
+        incomingRefreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+    )
+
+    const user = await User.findById(decodedToken?._id)
+    if (!user) {
+        throw new ApiError(401, "Invalid Refresh Token")
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+        throw new ApiError(401, "Refresh token is expired or used")
+    }
+
+    const {accessToken, refreshToken} = generateAccessAndRefreshToken(user._id)
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {accessToken, refreshToken},
+            "Access Token refreshed successfully!"
+        )
+    )
+
+})
 
 const registerUser = asyncHandler(async (req, res) => {
     const {username, fullName, email, password, role} = req.body
@@ -157,6 +198,10 @@ const approveProjectForUser = asyncHandler(async (req, res) => {
     if (!user) throw new ApiError(404, "User not found");
     if (!project) throw new ApiError(404, "Project not found");
 
+    if(user.approvedProjects.includes(projectId)) {
+        throw new ApiError(404, "User is already approved!")
+    }
+
     if (!user.approvedProjects.includes(projectId)) {
         user.approvedProjects.push(projectId);
         user.rejectedProjects = user.rejectedProjects.filter(
@@ -210,7 +255,7 @@ const getRejectedProjects = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, user.rejectedProjects, "Rejected projects fetched"));
 });
 
-export { registerUser, loginUser, logoutUser, meUser, getAllUsers, approveProjectForUser,
+export { registerUser, loginUser, logoutUser, meUser, getAllUsers, refreshAccessToken, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects}

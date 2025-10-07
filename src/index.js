@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import {PORT} from "./constants.js";
 import {app} from "./app.js";
 import connectDB from "./db/dbConnect.js";
+import { Chat } from "./models/chat.model.js";
 
 dotenv.config({
     path: "./.env"

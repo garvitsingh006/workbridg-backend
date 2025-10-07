@@ -145,7 +145,6 @@ const approveChat = asyncHandler(async (req, res) => {
 const newGroupChat = asyncHandler(async (req, res) => {
     try {
         const projectId = req.body.project;
-        console.log(projectId);
         const project = await Project.findById(projectId);
         if (!project) throw new ApiError(404, "Project not found");
         const name = project.name || project.title || "Project Chat";
@@ -166,6 +165,13 @@ const newGroupChat = asyncHandler(async (req, res) => {
                 "A group chat needs at least 2 participants."
             );
         }
+
+        const existingChat = await Chat.findOne({ project: projectId, type: "group" });
+        if (existingChat) {
+            return res.status(400).json(new ApiError(400, "A group chat for this project already exists."));
+        }
+
+
         const chat = await Chat.create({
             type: "group",
             name,
@@ -248,7 +254,7 @@ const removeParticipant = asyncHandler(async (req, res) => {
         (p) => p.toString() !== userId.toString()
     );
     await chat.addSystemMessage(
-        `${req.user.username} left from chat`,
+        `${req.user.username} left the chat`,
         "user_removed"
     );
     await chat.save();

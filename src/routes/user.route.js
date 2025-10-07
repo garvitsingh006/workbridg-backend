@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, meUser, getAllUsers, approveProjectForUser,
+import { loginUser, registerUser, logoutUser, meUser, getAllUsers, refreshAccessToken, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects } from "../controllers/user.controller.js";
@@ -14,6 +14,7 @@ router.route("/login").post(loginUser)
 router.route("/logout").post(verifyJWT, logoutUser)
 router.route("/me").get(verifyJWT, meUser)
 router.route('/all').get(verifyJWT, getAllUsers)
+router.route('/auth/refresh-token').post(refreshAccessToken)
 
 
 router.route('/:userId/projects/approve')

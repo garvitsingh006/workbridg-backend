@@ -107,24 +107,26 @@ const setProfile = asyncHandler(async (req, res) => {
         allowedFields.forEach((f) => {
             if (req.body[f] !== undefined) data[f] = req.body[f];
         });
-
+        console.log(req.body);
+        console.log(data);
         // create or update
         if (!profile) {
             profile = new ProfileModel({ user: userId, ...data });
         } else {
             Object.assign(profile, data);
+            console.log(profile)
         }
 
         try {
             await profile.save();
+            console.log(profile.toObject())
         } catch (error) {
-            console.error("Profile save failed:", error);
-            return res
-                .status(501)
-                .json({
-                    message: "Inside catch block this is",
-                    error: error.message,
-                });
+            console.error("Profile save failed:", error, error.stack);
+            return res.status(501).json({
+                message: "Inside catch block this is",
+                error: error.message,
+                stack: error.stack,
+            });
         }
         return res
             .status(200)
@@ -136,38 +138,38 @@ const setProfile = asyncHandler(async (req, res) => {
             );
     } catch (error) {
         console.error("Profile update error:", error);
-        return res
-            .status(501)
-            .json({
-                message: "Outside catch block this is",
-                error: error.message,
-            });
+        return res.status(501).json({
+            message: "Outside catch block this is",
+            error: error.message,
+        });
     }
 });
 
 const getProfile = asyncHandler(async (req, res) => {
     try {
         const username = req.params.username;
-    
+
         const user = await User.findOne({ username: username });
         if (!user) throw new ApiError(404, "User not found!");
-    
+
         // find user role first
         const { role } = user;
         const ProfileModel =
             role === "freelancer" ? FreelancerProfile : ClientProfile;
-    
-        const profile = await ProfileModel.findOne({ user: user._id }).populate({
-            path: "user",
-            select: "username role fullName",
-        });
-    
+
+        const profile = await ProfileModel.findOne({ user: user._id }).populate(
+            {
+                path: "user",
+                select: "username role fullName",
+            }
+        );
+
         if (!profile || !profile.user) {
             throw new ApiError(404, "Profile not found!");
         }
-    
+
         let publicProfile = profile.toObject();
-    
+
         if (role === "freelancer") {
             publicProfile.workExperience = profile.workExperience.map((w) => ({
                 title: w.title,
@@ -175,10 +177,12 @@ const getProfile = asyncHandler(async (req, res) => {
                 years: w.years,
             }));
         }
-    
+
         return res.status(200).json(new ApiResponse(200, publicProfile));
     } catch (error) {
-        return res.status(502).json({message: "From outside try catch block"})
+        return res
+            .status(502)
+            .json({ message: "From outside try catch block" });
     }
 });
 
