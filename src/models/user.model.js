@@ -31,8 +31,15 @@ const userSchema = new Schema(
         },
         role: {
             type: String,
-            enum: ["freelancer", "client", 'admin'],
+            enum: ["freelancer", "client", 'admin', 'interviewer'], // added 'interviewer'
             default: null
+        },
+        interviews: [
+            { type: Schema.Types.ObjectId, ref: "Interview" } // quick lookup
+        ],
+        isInterviewed: {
+            type: Boolean,
+            default: false
         },
         approvedProjects: [
             { type: Schema.Types.ObjectId, ref: "Project" }

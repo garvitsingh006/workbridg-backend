@@ -2,7 +2,8 @@ import { Router } from "express";
 import { loginUser, registerUser, logoutUser, meUser, getAllUsers, refreshAccessToken, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
-    getRejectedProjects } from "../controllers/user.controller.js";
+    getRejectedProjects,
+    getInterviewers } from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -15,6 +16,9 @@ router.route("/logout").post(verifyJWT, logoutUser)
 router.route("/me").get(verifyJWT, meUser)
 router.route('/all').get(verifyJWT, getAllUsers)
 router.route('/auth/refresh-token').post(refreshAccessToken)
+
+// interviewers
+router.route('/interviewers').get(verifyJWT, getInterviewers)
 
 
 router.route('/:userId/projects/approve')

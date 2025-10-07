@@ -185,6 +185,14 @@ const getAllUsers = asyncHandler(async (req, res) => {
     });
 })
 
+// Get all interviewers (name and username only)
+const getInterviewers = asyncHandler(async (req, res) => {
+    const interviewers = await User.find({ role: 'interviewer' }, 'fullName username');
+    return res
+        .status(200)
+        .json(new ApiResponse(200, interviewers, 'Interviewers fetched successfully'));
+});
+
 const approveProjectForUser = asyncHandler(async (req, res) => {
     if (req.user.role !== 'admin') {
         throw new ApiError(403, "Only admins can accept projects for users");
@@ -258,4 +266,5 @@ const getRejectedProjects = asyncHandler(async (req, res) => {
 export { registerUser, loginUser, logoutUser, meUser, getAllUsers, refreshAccessToken, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
-    getRejectedProjects}
+    getRejectedProjects,
+    getInterviewers}
