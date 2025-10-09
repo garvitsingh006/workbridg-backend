@@ -4,6 +4,7 @@ import {ApiResponse} from "../utils/ApiResponse.js"
 import {User} from "../models/user.model.js"
 import { Project } from "../models/project.model.js"
 import jwt from "jsonwebtoken"
+import { OAuth2Client } from "google-auth-library"
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -64,8 +65,38 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
 
 })
 
+const setRole = asyncHandler(async (req, res) => {
+    try {
+        console.log("Setting role", req.user);
+        if (!req.user) {
+            throw new ApiError(401, "Unauthorized");
+        }
+
+        const { role } = req.body;
+        if (!role) {
+            throw new ApiError(400, "Role is required");
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { role },
+            { new: true, select: "-password -refreshToken" }
+        );
+
+        if (!updatedUser) {
+            throw new ApiError(404, "User not found");
+        }
+
+        return res.status(200).json(new ApiResponse(200, updatedUser, "Role updated successfully"));
+    } catch (error) {
+        console.log("Some error while setting role", error);
+        throw error; // asyncHandler will handle it
+    }
+});
+
+
 const registerUser = asyncHandler(async (req, res) => {
-    const {username, fullName, email, password, role} = req.body
+    const {username, fullName, email, password} = req.body
 
     // Check if fields are empty
     if (
@@ -86,7 +117,6 @@ const registerUser = asyncHandler(async (req, res) => {
         fullName,
         email,
         password,
-        role
     })
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken");
@@ -263,8 +293,74 @@ const getRejectedProjects = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, user.rejectedProjects, "Rejected projects fetched"));
 });
 
-export { registerUser, loginUser, logoutUser, meUser, getAllUsers, refreshAccessToken, approveProjectForUser,
+export { registerUser, loginUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects,
     getInterviewers}
+
+// Google OAuth controllers
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+
+export const googleSignup = asyncHandler(async (req, res) => {
+    const { token } = req.body
+    if (!token) {
+        throw new ApiError(400, "Google token is required")
+    }
+
+    const ticket = await googleClient.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID })
+    const payload = ticket.getPayload()
+    const email = payload?.email?.toLowerCase()
+    const fullName = payload?.name
+
+    if (!email) {
+        throw new ApiError(400, "Invalid Google token: email missing")
+    }
+
+    const existing = await User.findOne({ email })
+    if (existing) {
+        throw new ApiError(409, "user already exists")
+    }
+
+    // Create a username from email local-part if not provided
+    const suggestedUsername = (email.split("@")[0] || "user").toLowerCase()
+
+    const newUser = await User.create({
+        username: suggestedUsername,
+        fullName: fullName || suggestedUsername,
+        email,
+        password: jwt.sign({ email }, process.env.JWT_SECRET || "fallback", { expiresIn: "1d" }) // placeholder password
+    })
+
+    const createdUser = await User.findById(newUser._id).select("-password -refreshToken")
+    return res.status(201).json(new ApiResponse(200, { user: createdUser, isNewUser: true }, "Google signup successful"))
+})
+
+export const googleLogin = asyncHandler(async (req, res) => {
+    const { token } = req.body
+    if (!token) {
+        throw new ApiError(400, "Google token is required")
+    }
+
+    const ticket = await googleClient.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID })
+    const payload = ticket.getPayload()
+    const email = payload?.email?.toLowerCase()
+    if (!email) {
+        throw new ApiError(400, "Invalid Google token: email missing")
+    }
+
+    const user = await User.findOne({ email })
+    if (!user) {
+        throw new ApiError(404, "user doesn’t exist")
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
+    const loggedInUser = await User.findById(user._id).select("-password  -refreshToken")
+
+    const options = { httpOnly: true, secure: true }
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "Google login successful"))
+})
