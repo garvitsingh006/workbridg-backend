@@ -20,6 +20,10 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
         const user = await User.findById(decodedToken?._id).select(
             "-password  -refreshToken"
         );
+
+        if (!user.isVerified) {
+            throw new ApiError(403, "Email is not verified. Please verify your email to proceed");
+        }
         req.user = user;
 
         next();

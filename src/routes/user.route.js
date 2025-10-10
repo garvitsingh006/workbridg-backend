@@ -40,4 +40,7 @@ router.route('/:userId/projects/rejected')
 router.route('/auth/google/signup').post(googleSignup)
 router.route('/auth/google/login').post(googleLogin)
 
+// verify user using email
+router.route("/verify").get(verifyUser)
+
 export default router

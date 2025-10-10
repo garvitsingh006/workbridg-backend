@@ -29,6 +29,18 @@ const userSchema = new Schema(
             required: [true, "Password is required"],
             minlength: [6, "Password must be at least 6 characters long"],
         },
+        verificationToken: {
+            type: String,
+            default: null,
+        },
+        verificationTokenExpiry: {
+            type: Date,
+            default: null,
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
         role: {
             type: String,
             enum: ["freelancer", "client", 'admin', 'interviewer'], // added 'interviewer'

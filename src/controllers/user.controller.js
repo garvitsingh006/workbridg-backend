@@ -5,6 +5,8 @@ import { User } from "../models/user.model.js";
 import { Project } from "../models/project.model.js";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -123,11 +125,35 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // Creating entry in User table
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiry = Date.now() + 1000 * 60 * 30; // 30 minutes
+
+
     const user = await User.create({
         username: username.toLowerCase(),
         fullName,
         email,
         password,
+        verificationToken,
+        verificationTokenExpiry: tokenExpiry,
+        isVerified: false,
+    });
+
+    const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        requireTLS: true,
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    });
+
+    const verificationLink = `https://workbridg.xyz/verify?token=${verificationToken}`;
+
+    await transporter.sendMail({
+        from: '"Workbridg" <garvitsingh006@gmail.com>',
+        to: email,
+        subject: "Verify your account",
+        html: `Click <a href="${verificationLink}">here</a> to verify your account.`
     });
 
     const createdUser = await User.findById(user._id).select(
@@ -137,6 +163,34 @@ const registerUser = asyncHandler(async (req, res) => {
         .status(201)
         .json(new ApiResponse(200, createdUser, "User Created Successfully"));
 });
+
+const verifyUser = asyncHandler(async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        throw new ApiError(400, "Verification token is required");
+    }
+
+    // Find user with this token
+    const user = await User.findOne({
+        verificationToken: token,
+        verificationTokenExpiry: { $gt: Date.now() } // check not expired
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or expired verification token");
+    }
+
+    // Mark as verified
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpiry = undefined;
+    await user.save();
+
+    // Respond or redirect
+    res.status(200).json({ message: "Email verified successfully! You can now log in." });
+});
+
 
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
@@ -382,6 +436,7 @@ export const googleSignup = asyncHandler(async (req, res) => {
         password: jwt.sign({ email }, process.env.JWT_SECRET || "fallback", {
             expiresIn: "1d",
         }),
+        isVerified: true,
     });
 
     const createdUser = await User.findById(newUser._id).select(
