@@ -128,6 +128,26 @@ const registerUser = asyncHandler(async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpiry = Date.now() + 1000 * 60 * 30; // 30 minutes
 
+    const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        requireTLS: true,
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+    });
+
+    const verificationLink = `http://localhost:8000/api/v1/users/verify?token=${verificationToken}`;
+    try {
+        await transporter.sendMail({
+            from: '"Workbridg" <garvitsingh006@gmail.com>',
+            to: email,
+            subject: "Verify your account",
+            html: `Click <a href="${verificationLink}">here</a> to verify your account.`
+        });
+    } catch (error) {
+        res.status(500).json({message: "Error sending verification email", success: false});
+        return;
+    }
 
     const user = await User.create({
         username: username.toLowerCase(),
@@ -139,33 +159,31 @@ const registerUser = asyncHandler(async (req, res) => {
         isVerified: false,
     });
 
-    const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+        user._id
+    );
+
+    const options = {
+        httpOnly: true,
         secure: true,
-        requireTLS: true,
-        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    };
 
-    const verificationLink = `https://workbridg.xyz/verify?token=${verificationToken}`;
 
-    await transporter.sendMail({
-        from: '"Workbridg" <garvitsingh006@gmail.com>',
-        to: email,
-        subject: "Verify your account",
-        html: `Click <a href="${verificationLink}">here</a> to verify your account.`
-    });
+
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     );
     return res
         .status(201)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
         .json(new ApiResponse(200, createdUser, "User Created Successfully"));
 });
 
 const verifyUser = asyncHandler(async (req, res) => {
     const { token } = req.query;
+    console.log(token)
 
     if (!token) {
         throw new ApiError(400, "Verification token is required");
@@ -188,7 +206,7 @@ const verifyUser = asyncHandler(async (req, res) => {
     await user.save();
 
     // Respond or redirect
-    res.status(200).json({ message: "Email verified successfully! You can now log in." });
+    res.redirect("http://localhost:5173/login?verified=true");
 });
 
 
@@ -202,6 +220,11 @@ const loginUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
         throw new ApiError(404, "User does not exists!");
+    }
+
+    // check email verification
+    if (!user.isVerified) {
+        throw new ApiError(403, "Email is not verified. Please verify your email to proceed");
     }
 
     const isPasswordValid = user.isPasswordCorrect(password);
@@ -267,6 +290,7 @@ const meUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id).select(
         "-password -refreshToken"
     );
+
     if (!user) {
         throw new ApiError(404, "User not found!");
     }
@@ -385,6 +409,7 @@ const getRejectedProjects = asyncHandler(async (req, res) => {
 export {
     registerUser,
     loginUser,
+    verifyUser,
     logoutUser,
     meUser,
     getAllUsers,

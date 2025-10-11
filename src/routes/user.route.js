@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser,
+import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects,
@@ -8,6 +8,7 @@ import { loginUser, registerUser, logoutUser, meUser, getAllUsers, refreshAccess
     googleLogin } from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
 
 const router = Router()
 router.route("/register").post(registerUser)
@@ -21,20 +22,20 @@ router.route('/auth/refresh-token').post(verifyJWT, refreshAccessToken)
 router.route('/set-role').post(verifyJWT, setRole)
 
 // interviewers
-router.route('/interviewers').get(verifyJWT, getInterviewers)
+router.route('/interviewers').get(verifyJWT, checkEmailVerified, getInterviewers)
 
 
 router.route('/:userId/projects/approve')
-    .post(verifyJWT, approveProjectForUser);
+    .post(verifyJWT, checkEmailVerified, approveProjectForUser);
 
 router.route('/:userId/projects/reject')
-    .post(verifyJWT, rejectProjectForUser);
+    .post(verifyJWT, checkEmailVerified, rejectProjectForUser);
 
 router.route('/:userId/projects/approved')
-    .get(verifyJWT, getApprovedProjects);
+    .get(verifyJWT, checkEmailVerified, getApprovedProjects);
 
 router.route('/:userId/projects/rejected')
-    .get(verifyJWT, getRejectedProjects);
+    .get(verifyJWT, checkEmailVerified, getRejectedProjects);
 
 // Google OAuth
 router.route('/auth/google/signup').post(googleSignup)

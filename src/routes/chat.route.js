@@ -9,24 +9,26 @@ import {
     newGroupChat,
     addParticipants,
     getParticipants,
-    removeParticipant
+    removeParticipant,
 } from "../controllers/chat.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
 
 const router = Router();
 
-router.post("/new", verifyJWT, newChat);
-router.post("/:id/message", verifyJWT, newMessage);
-router.get("/user", verifyJWT, getAllChats);
+router.route("/new").post(verifyJWT, checkEmailVerified, newChat);
+router.route("/:id/message").post(verifyJWT, checkEmailVerified, newMessage);
+router.route("/user").get(verifyJWT, checkEmailVerified, getAllChats);
 
 // Group chat endpoints
-router.post("/group", verifyJWT, newGroupChat); // Create a group chat
-router.post("/:chatId/participants", verifyJWT, addParticipants); // Add participants
-router.get("/:chatId/participants", verifyJWT, getParticipants); // Fetch participants
+router.route("/group").post(verifyJWT, checkEmailVerified, newGroupChat); // Create a group chat
+router.route("/:chatId/participants")
+    .post(verifyJWT, checkEmailVerified, addParticipants) // Add participants
+    .get(verifyJWT, checkEmailVerified, getParticipants); // Fetch participants
 
-router.patch("/:chatId/read", verifyJWT, markMessagesAsRead);
-router.patch("/:chatId/add-admin", verifyJWT, addAdminToChat);
-router.patch("/:chatId/approve", verifyJWT, approveChat);
-router.delete("/:chatId/participants/:userId", verifyJWT, removeParticipant);
+router.route("/:chatId/read").patch(verifyJWT, checkEmailVerified, markMessagesAsRead);
+router.route("/:chatId/add-admin").patch(verifyJWT, checkEmailVerified, addAdminToChat);
+router.route("/:chatId/approve").patch(verifyJWT, checkEmailVerified, approveChat);
+router.route("/:chatId/participants/:userId").delete(verifyJWT, checkEmailVerified, removeParticipant);
 
 export default router;
