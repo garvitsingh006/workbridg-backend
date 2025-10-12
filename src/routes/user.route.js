@@ -4,6 +4,8 @@ import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, r
     getApprovedProjects,
     getRejectedProjects,
     getInterviewers,
+    getFreelancers,
+    getClients,
     googleSignup,
     googleLogin,
     forgotPassword,
@@ -23,8 +25,10 @@ router.route('/all').get(verifyJWT, getAllUsers)
 router.route('/auth/refresh-token').post(verifyJWT, refreshAccessToken)
 router.route('/set-role').post(verifyJWT, setRole)
 
-// interviewers
-router.route('/interviewers').get(verifyJWT, checkEmailVerified, getInterviewers)
+// role-based user fetching
+router.route('/getInterviewers').get(verifyJWT, checkEmailVerified, getInterviewers)
+router.route('/getFreelancers').get(verifyJWT, checkEmailVerified, getFreelancers)
+router.route('/getClients').get(verifyJWT, checkEmailVerified, getClients)
 
 
 router.route('/:userId/projects/approve')

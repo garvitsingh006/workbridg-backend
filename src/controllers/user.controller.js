@@ -315,15 +315,47 @@ const getAllUsers = asyncHandler(async (req, res) => {
 const getInterviewers = asyncHandler(async (req, res) => {
     const interviewers = await User.find(
         { role: "interviewer" },
-        "fullName username"
+        "_id fullName username role"
     );
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                interviewers,
+                { users: interviewers },
                 "Interviewers fetched successfully"
+            )
+        );
+});
+
+const getFreelancers = asyncHandler(async (req, res) => {
+    const freelancers = await User.find(
+        { role: "freelancer" },
+        "_id fullName username role"
+    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { users: freelancers },
+                "Freelancers fetched successfully"
+            )
+        );
+});
+
+const getClients = asyncHandler(async (req, res) => {
+    const clients = await User.find(
+        { role: "client" },
+        "_id fullName username role"
+    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { users: clients },
+                "Clients fetched successfully"
             )
         );
 });
@@ -523,6 +555,8 @@ export {
     getApprovedProjects,
     getRejectedProjects,
     getInterviewers,
+    getFreelancers,
+    getClients,
     forgotPassword,
     resetPassword,
 };
