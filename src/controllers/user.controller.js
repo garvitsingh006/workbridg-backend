@@ -227,7 +227,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Email is not verified. Please verify your email to proceed");
     }
 
-    const isPasswordValid = user.isPasswordCorrect(password);
+    const isPasswordValid = await user.isPasswordCorrect(password);
     if (!isPasswordValid) {
         throw new ApiError(401, "Invaid User Credentials!");
     }
@@ -406,6 +406,109 @@ const getRejectedProjects = asyncHandler(async (req, res) => {
     );
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const tokenExpiry = Date.now() + 1000 * 60 * 30;
+
+        user.passwordResetToken = resetToken;
+        user.passwordResetTokenExpiry = tokenExpiry;
+        await user.save({ validateBeforeSave: false });
+
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            requireTLS: true,
+            auth: {
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_APP_PASSWORD,
+            },
+        });
+
+        const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+
+        try {
+            await transporter.sendMail({
+                from: '"Workbridg" <garvitsingh006@gmail.com>',
+                to: email,
+                subject: "Reset Your Password",
+                html: `
+                    <h2>Password Reset Request</h2>
+                    <p>You requested to reset your password. Click the link below to reset it:</p>
+                    <a href="${resetLink}">Reset Password</a>
+                    <p>This link will expire in 30 minutes.</p>
+                    <p>If you did not request this, please ignore this email.</p>
+                `,
+            });
+        } catch (error) {
+            user.passwordResetToken = null;
+            user.passwordResetTokenExpiry = null;
+            await user.save({ validateBeforeSave: false });
+            throw new ApiError(500, "Error sending password reset email");
+        }
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "If the email exists, a password reset link has been sent"
+            )
+        );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!token) {
+        throw new ApiError(400, "Reset token is required");
+    }
+
+    if (!newPassword || newPassword.trim().length < 6) {
+        throw new ApiError(
+            400,
+            "New password is required and must be at least 6 characters long"
+        );
+    }
+
+    const user = await User.findOne({
+        passwordResetToken: token,
+        passwordResetTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or expired password reset token");
+    }
+
+    user.password = newPassword;
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpiry = null;
+    user.refreshToken = undefined;
+    await user.save();
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "Password reset successful. Please log in with your new password"
+            )
+        );
+});
+
 export {
     registerUser,
     loginUser,
@@ -420,6 +523,8 @@ export {
     getApprovedProjects,
     getRejectedProjects,
     getInterviewers,
+    forgotPassword,
+    resetPassword,
 };
 
 // Google OAuth controllers

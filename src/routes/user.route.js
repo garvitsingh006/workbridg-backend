@@ -5,7 +5,9 @@ import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, r
     getRejectedProjects,
     getInterviewers,
     googleSignup,
-    googleLogin } from "../controllers/user.controller.js";
+    googleLogin,
+    forgotPassword,
+    resetPassword } from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
@@ -43,5 +45,9 @@ router.route('/auth/google/login').post(googleLogin)
 
 // verify user using email
 router.route("/verify").get(verifyUser)
+
+// password reset routes
+router.route("/forgot-password").post(forgotPassword)
+router.route("/reset-password/:token").post(resetPassword)
 
 export default router
