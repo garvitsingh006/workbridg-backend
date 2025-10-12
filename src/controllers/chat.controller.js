@@ -153,10 +153,10 @@ const newGroupChat = asyncHandler(async (req, res) => {
         const participantIds = Array.isArray(req.body.participantIds)
             ? req.body.participantIds
             : [];
-        if (req.user.role != "admin") {
+        if (req.user.role != "admin" && req.user.role != "client") {
             throw new ApiError(
                 403,
-                "A group chat can only be created by Admin."
+                "A group chat can only be created by Admin or Client."
             );
         }
         if (participantIds.length < 2) {

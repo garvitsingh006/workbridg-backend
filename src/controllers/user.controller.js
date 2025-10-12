@@ -329,8 +329,8 @@ const getInterviewers = asyncHandler(async (req, res) => {
 });
 
 const approveProjectForUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== "admin") {
-        throw new ApiError(403, "Only admins can accept projects for users");
+    if (req.user.role !== "admin" && req.user.role !== "client") {
+        throw new ApiError(403, "Only admins and clients can accept projects");
     }
 
     const userId = req.params.userId;
@@ -359,8 +359,8 @@ const approveProjectForUser = asyncHandler(async (req, res) => {
 });
 
 const rejectProjectForUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== "admin") {
-        throw new ApiError(403, "Only admins can reject projects for users");
+    if (req.user.role !== "admin" && req.user.role !== "client") {
+        throw new ApiError(403, "Only admins and clients can reject projects for users");
     }
 
     const userId = req.params.userId;

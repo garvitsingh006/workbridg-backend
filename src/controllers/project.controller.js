@@ -293,8 +293,8 @@ const getProjectApplications = asyncHandler(async (req, res) => {
 });
 
 const deleteProjectApplication = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin') {
-        throw new ApiError(403, "Only admins can delete project applications");
+    if (req.user.role !== 'admin' && req.user.role !== 'client') {
+        throw new ApiError(403, "Only admins and clients can delete project applications");
     }
 
     const { projectId, userId } = req.params;
