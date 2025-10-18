@@ -2,7 +2,7 @@ import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
-import { getProject, newProject, updateProject, deleteProject, fetchAllUserProjects, fetchAllProjects, applyToProject, getProjectApplications, deleteProjectApplication} from "../controllers/project.controller.js";
+import { getProject, newProject, updateProject, deleteProject, fetchAllUserProjects, fetchAllProjects, applyToProject, getProjectApplications, getChosenApplications, deleteProjectApplication} from "../controllers/project.controller.js";
 
 const router = Router();
 
@@ -19,6 +19,7 @@ router.route("/:id").get(verifyJWT, checkEmailVerified, getProject);
 // Something else
 router.route("/:projectId/apply").post(verifyJWT, checkEmailVerified, applyToProject)
 router.route("/:projectId/applications").get(verifyJWT, checkEmailVerified, getProjectApplications)
+router.route("/:projectId/chosenApplications").get(verifyJWT, checkEmailVerified, getChosenApplications)
 router.route("/:projectId/applications/:userId").delete(verifyJWT, checkEmailVerified, deleteProjectApplication);
 
 

@@ -139,7 +139,7 @@ const updateProject = asyncHandler(async (req, res) => {
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
-    
+
     if (userRole !== "client" && userRole != "admin") {
         throw new ApiError(403, "Only clients and admins can update projects");
     }
@@ -153,7 +153,6 @@ const updateProject = asyncHandler(async (req, res) => {
             "You are not authorized to update this project"
         );
     }
-
 
     const { title, description, deadline, status } = req.body;
 
@@ -228,7 +227,7 @@ const deleteProject = asyncHandler(async (req, res) => {
 });
 
 const applyToProject = asyncHandler(async (req, res) => {
-    if (req.user.role.toLowerCase() !== 'freelancer') {
+    if (req.user.role.toLowerCase() !== "freelancer") {
         throw new ApiError(403, "Only freelancers can apply to projects");
     }
     const { projectId } = req.params;
@@ -242,18 +241,19 @@ const applyToProject = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Project not found");
     }
 
-    console.log(project)
+    console.log(project);
 
     // Assuming project.applications is an array in the project model
     project.applications = project.applications || [];
 
     // Check if user already applied
-    const alreadyApplied = project.applications.some(app => app.applicant.toString() === req.user._id.toString());
-    console.log(alreadyApplied)
+    const alreadyApplied = project.applications.some(
+        (app) => app.applicant.toString() === req.user._id.toString()
+    );
+    console.log(alreadyApplied);
     if (alreadyApplied) {
         throw new ApiError(400, "You have already applied to this project");
     }
-
 
     project.applications.push({
         applicant: req.user._id,
@@ -265,36 +265,77 @@ const applyToProject = asyncHandler(async (req, res) => {
 
     await project.save();
 
-    res.status(200).json(new ApiResponse(200, null, "Application submitted successfully"));
+    res.status(200).json(
+        new ApiResponse(200, null, "Application submitted successfully")
+    );
 });
-
 const getProjectApplications = asyncHandler(async (req, res) => {
+    const { projectId } = req.params; // Find project and populate the applicant field in applications with only _id and fullName
+
+    const project = await Project.findById(projectId).populate({
+        path: "applications.applicant",
+        select: "_id fullName",
+    });
+
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    } // Format applications as requested
+
+    const applications = (project.applications || []).map((app) => ({
+        applicant: app.applicant
+            ? { _id: app.applicant._id, fullName: app.applicant.fullName }
+            : null,
+        deadline: app.deadline,
+        expectedPayment: app.expectedPayment,
+        appliedAt: app.appliedAt,
+    }));
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            applications,
+            "Project applications fetched successfully"
+        )
+    );
+});
+const getChosenApplications = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
 
-    // Find project and populate the applicant field in applications with only _id and fullName
     const project = await Project.findById(projectId).populate({
-        path: 'applications.applicant',
-        select: '_id fullName',
+        path: "applications.applicant",
+        select: "_id fullName",
     });
 
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
 
-    // Format applications as requested
-    const applications = (project.applications || []).map(app => ({
-        applicant: app.applicant ? { _id: app.applicant._id, fullName: app.applicant.fullName } : null,
-        deadline: app.deadline,
-        expectedPayment: app.expectedPayment,
-        appliedAt: app.appliedAt,
-    }));
+    // Filter chosen ones
+    const chosenApplications = project.applications
+        .filter((app) => app.isChosenByClient)
+        .map((app) => ({
+            applicant: app.applicant
+                ? { _id: app.applicant._id, fullName: app.applicant.fullName }
+                : null,
+            deadline: app.deadline,
+            expectedPayment: app.expectedPayment,
+            appliedAt: app.appliedAt,
+        }));
 
-    res.status(200).json(new ApiResponse(200, applications, "Project applications fetched successfully"));
+    console.log("chosen applicatons: ", chosenApplications);
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            chosenApplications,
+            "Chosen applications fetched successfully"
+        )
+    );
 });
 
 const deleteProjectApplication = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'client') {
-        throw new ApiError(403, "Only admins and clients can delete project applications");
+    if (req.user.role !== "admin") {
+        throw new ApiError(403, "Only admins can delete project applications");
     }
 
     const { projectId, userId } = req.params;
@@ -308,7 +349,7 @@ const deleteProjectApplication = asyncHandler(async (req, res) => {
 
     // Remove application(s) by userId
     project.applications = project.applications.filter(
-        app => app.applicant.toString() !== userId
+        (app) => app.applicant.toString() !== userId
     );
 
     if (project.applications.length === initialLength) {
@@ -317,9 +358,10 @@ const deleteProjectApplication = asyncHandler(async (req, res) => {
 
     await project.save();
 
-    res.status(200).json(new ApiResponse(200, null, "Application deleted successfully"));
+    res.status(200).json(
+        new ApiResponse(200, null, "Application deleted successfully")
+    );
 });
-
 
 export {
     newProject,
@@ -330,5 +372,6 @@ export {
     fetchAllProjects,
     applyToProject,
     getProjectApplications,
-    deleteProjectApplication
+    getChosenApplications,
+    deleteProjectApplication,
 };

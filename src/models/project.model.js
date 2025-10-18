@@ -56,6 +56,7 @@ const projectSchema = new Schema(
                 deadline: String,
                 expectedPayment: String,
                 appliedAt: Date,
+                isChosenByClient: { type: Boolean, default: false },
             },
         ],
         payment: {

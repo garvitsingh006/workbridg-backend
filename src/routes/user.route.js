@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser,
+import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser, projectInProgress, userApplicationChosenByClient,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects,
@@ -30,9 +30,11 @@ router.route('/getInterviewers').get(verifyJWT, checkEmailVerified, getInterview
 router.route('/getFreelancers').get(verifyJWT, checkEmailVerified, getFreelancers)
 router.route('/getClients').get(verifyJWT, checkEmailVerified, getClients)
 
+router.route('/:userId/projects/:projectId/chooseApplication')
+    .post(verifyJWT, checkEmailVerified, userApplicationChosenByClient);
 
 router.route('/:userId/projects/approve')
-    .post(verifyJWT, checkEmailVerified, approveProjectForUser);
+    .post(verifyJWT, checkEmailVerified, approveProjectForUser, projectInProgress);
 
 router.route('/:userId/projects/reject')
     .post(verifyJWT, checkEmailVerified, rejectProjectForUser);

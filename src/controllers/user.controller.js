@@ -360,9 +360,45 @@ const getClients = asyncHandler(async (req, res) => {
         );
 });
 
-const approveProjectForUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== "admin" && req.user.role !== "client") {
-        throw new ApiError(403, "Only admins and clients can accept projects");
+
+const userApplicationChosenByClient = asyncHandler(async (req, res) => { // Client will do this
+    const { projectId, userId } = req.params;
+
+    // Find the project
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    // Find the application for the given user
+    const application = project.applications.find(
+        (app) => app.applicant.toString() === userId
+    );
+    if (!application) {
+        throw new ApiError(404, "Application not found for the given user");
+    }
+
+    // Update the flag
+    application.isChosenByClient = true;
+
+    // Remove all other applications except the chosen one
+    // project.applications = project.applications.filter(
+    //     (app) => app.applicant.toString() === userId
+    // );
+
+    // Also update project status
+    project.status = "pending";
+
+    await project.save();
+
+    res.status(200).json(
+        new ApiResponse(200, project, "Application selected, others removed, and project set to pending")
+    );
+});
+
+const approveProjectForUser = asyncHandler(async (req, res) => { // admin will then do this
+    if (req.user.role !== "admin") {
+        throw new ApiError(403, "Only admins can approve project applications");
     }
 
     const userId = req.params.userId;
@@ -389,10 +425,21 @@ const approveProjectForUser = asyncHandler(async (req, res) => {
         new ApiResponse(200, user.approvedProjects, "Project accepted")
     );
 });
-
-const rejectProjectForUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== "admin" && req.user.role !== "client") {
-        throw new ApiError(403, "Only admins and clients can reject projects for users");
+const projectInProgress = asyncHandler(async (req, res) => { // will happen after project approval
+    const { projectId } = req.params;
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+    project.status = "in-progress";
+    await project.save();
+    res.status(200).json(
+        new ApiResponse(200, project, "Project status updated to in-progress")
+    );
+})
+const rejectProjectForUser = asyncHandler(async (req, res) => { // admin will do this
+    if (req.user.role !== "admin") {
+        throw new ApiError(403, "Only admins can reject project applications");
     }
 
     const userId = req.params.userId;
@@ -413,6 +460,7 @@ const rejectProjectForUser = asyncHandler(async (req, res) => {
         new ApiResponse(200, user.rejectedProjects, "Project rejected")
     );
 });
+
 
 // Get accepted projects for a user (populated)
 const getApprovedProjects = asyncHandler(async (req, res) => {
@@ -553,6 +601,8 @@ export {
     approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
+    userApplicationChosenByClient,
+    projectInProgress,
     getRejectedProjects,
     getInterviewers,
     getFreelancers,
