@@ -1,52 +1,67 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
-const paymentSchema = new Schema(
-    {
-        project: {
-            type: Schema.Types.ObjectId,
-            ref: "Project",
-            required: true,
-        },
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        },
-        amount: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        status: {
-            type: String,
-            enum: ["pending", "completed", "failed"],
-            default: "pending",
-        },
-        transactionId: {
-            type: String, // Razorpay
-        },
-        paidAt: {
-            type: Date,
-        },
-    },
-    { timestamps: true }
-);
+const paymentStageSchema = new mongoose.Schema({
+  orderId: { type: String },
+  paymentId: { type: String },
+  signature: { type: String },
+  amount: { type: Number, required: true },
+  status: {
+    type: String,
+    enum: ["pending", "created", "paid", "failed"],
+    default: "pending",
+  },
+  createdAt: { type: Date, default: Date.now },
+});
 
-projectSchema.methods.markPaymentCompleted = async function (txnId) {
-    this.payment.status = "completed";
-    this.paymnet.transactionId = txnId;
-    this.paidAt = new Date();
-    return await this.save();
-};
+const paymentSchema = new mongoose.Schema({
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Project",
+    required: true,
+  },
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  freelancerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
 
-paymentSchema.methods.updateStatus = async function (newStatus) {
-    const allowedStatuses = ["pending", "completed", "failed"]; // whitelist
-    if (!allowedStatuses.includes(newStatus)) {
-        throw new Error(`Invalid status: ${newStatus}`);
-    }
+  totalAmount: { type: Number, required: true },
+  platformFee: { type: Number, default: 0 },
 
-    this.status = newStatus;
-    return await this.save();
-};
+  advance: { type: paymentStageSchema, required: true },
+  final: { type: paymentStageSchema, required: true },
+
+  releaseAmount: { type: Number, default: 0 },
+  releaseStatus: {
+    type: String,
+    enum: ["not_released", "released", "refunded"],
+    default: "not_released",
+  },
+
+  overallStatus: {
+    type: String,
+    enum: [
+      "pending",
+      "advance_paid",
+      "final_paid",
+      "released",
+      "refunded",
+    ],
+    default: "pending",
+  },
+
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+paymentSchema.pre("save", function (next) {
+  this.updatedAt = Date.now();
+  next();
+});
 
 export const Payment = mongoose.model("Payment", paymentSchema);
