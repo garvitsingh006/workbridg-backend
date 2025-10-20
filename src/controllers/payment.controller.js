@@ -12,7 +12,7 @@ const razorpay = new Razorpay({
 });
 
 const createPaymentRecord = asyncHandler(async (req, res) => {
-  const { projectId, totalAmount, platformFeePercentage = 10 } = req.body;
+  const { projectId, totalAmount, clientPlatformFeePercentage = 5 } = req.body;
 
   if (!projectId || !totalAmount) {
     throw new ApiError(400, "Project ID and total amount are required");
@@ -32,22 +32,30 @@ const createPaymentRecord = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Payment record already exists for this project");
   }
 
-  const platformFee = (totalAmount * platformFeePercentage) / 100;
-  const advanceAmount = (totalAmount * 10) / 100;
-  const finalAmount = totalAmount - advanceAmount;
+  const clientPlatformFee = (totalAmount * clientPlatformFeePercentage) / 100;
+//   const advanceAmount = (totalAmount * 10) / 100;
+//   const finalAmount = totalAmount - advanceAmount;
+  const freelancerPlatformFee = (totalAmount * 8)/100;
 
   const payment = await Payment.create({
     projectId,
     clientId: project.createdBy._id,
     freelancerId: project.assignedTo._id,
     totalAmount,
-    platformFee,
-    advance: {
-      amount: advanceAmount,
-      status: "pending",
+    platformFee: {
+        serviceCharge: clientPlatformFee,
+        commissionFee: freelancerPlatformFee,
     },
-    final: {
-      amount: finalAmount,
+    // advance: {
+    //   amount: advanceAmount,
+    //   status: "pending",
+    // },
+    // final: {
+    //   amount: finalAmount,
+    //   status: "pending",
+    // },
+    total: {
+      amount: totalAmount,
       status: "pending",
     },
     overallStatus: "pending",

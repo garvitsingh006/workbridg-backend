@@ -413,6 +413,11 @@ const approveProjectForUser = asyncHandler(async (req, res) => { // admin will t
         throw new ApiError(404, "User is already approved!");
     }
 
+    project.assignedTo = userId;
+    project.status = "in-progress";
+    await project.save();
+    console.log("Status of the project is after changing it to in-progress", project.status)
+
     if (!user.approvedProjects.includes(projectId)) {
         user.approvedProjects.push(projectId);
         user.rejectedProjects = user.rejectedProjects.filter(
@@ -425,18 +430,27 @@ const approveProjectForUser = asyncHandler(async (req, res) => { // admin will t
         new ApiResponse(200, user.approvedProjects, "Project accepted")
     );
 });
-const projectInProgress = asyncHandler(async (req, res) => { // will happen after project approval
+const projectInProgress = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
     const project = await Project.findById(projectId);
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
+
+    // Find the chosen freelancer from applications
+    // const chosenApplication = project.applications.find(app => app.isChosenByClient);
+    // if (!chosenApplication) {
+    //     throw new ApiError(400, "No freelancer has been chosen for this project");
+    // }
+
+    // project.assignedTo = chosenApplication.applicant; // assign freelancer's ObjectId
     project.status = "in-progress";
     await project.save();
+
     res.status(200).json(
-        new ApiResponse(200, project, "Project status updated to in-progress")
+        new ApiResponse(200, project, "Project status updated to in-progress and freelancer assigned")
     );
-})
+});
 const rejectProjectForUser = asyncHandler(async (req, res) => { // admin will do this
     if (req.user.role !== "admin") {
         throw new ApiError(403, "Only admins can reject project applications");

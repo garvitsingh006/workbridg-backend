@@ -31,10 +31,14 @@ const paymentSchema = new mongoose.Schema({
   },
 
   totalAmount: { type: Number, required: true },
-  platformFee: { type: Number, default: 0 },
+  platformFee: {
+    serviceCharge: { type: Number, required: true },
+    commissionFee: { type: Number, required: true },
+  },
 
-  advance: { type: paymentStageSchema, required: true },
-  final: { type: paymentStageSchema, required: true },
+//   advance: { type: paymentStageSchema, required: true },
+//   final: { type: paymentStageSchema, required: true },
+  total: {type: paymentStageSchema, required: true},
 
   releaseAmount: { type: Number, default: 0 },
   releaseStatus: {

@@ -194,7 +194,7 @@ Use Razorpay test keys for development. Test cards:
 
 ## Notes
 
-- **Platform fee**: Fixed at 10% of total amount
+- **Platform fee**: Fixed at 10% of total amount that client will pay, which means that the total amount client has to pay will be 10% more than that of what the client and freelancer have decided to be the project payment.
 - **Advance split**: 10% of total
 - **Final split**: 90% of total
 - **Manual escrow**: Admin manually transfers after release

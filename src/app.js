@@ -21,6 +21,25 @@ app.use((err, req, res, next) => {
     });
 });
 
+// import { Project } from "./models/project.model.js";
+// import { Payment } from "./models/payment.model.js";
+// import { Chat } from "./models/chat.model.js";
+
+// const deleteAllProjects = async () => {
+//   try {
+//     const result = await Project.deleteMany({});
+//     const result2 = await Payment.deleteMany({});
+//         const result3 = await Chat.deleteMany({});
+//     console.log(`Deleted ${result.deletedCount} projects.`);
+//     console.log(`Deleted ${result2.deletedCount} payments.`);
+//     console.log(`Deleted ${result3.deletedCount} chats.`);
+//   } catch (err) {
+//     console.error(err);
+//   }
+// };
+
+// deleteAllProjects();
+
 
 // import routes
 import userRouter from "./routes/user.route.js"
