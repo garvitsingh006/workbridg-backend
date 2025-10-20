@@ -48,11 +48,13 @@ import projectRouter from "./routes/project.route.js"
 import chatRouter from "./routes/chat.route.js"
 import interviewRouter from "./routes/interview.route.js"
 import paymentRouter from "./routes/payment.route.js"
+import uploadRouter from "./routes/upload.route.js"
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/profiles", profileRouter)
 app.use("/api/v1/projects", projectRouter)
 app.use("/api/v1/chats", chatRouter)
 app.use("/api/v1/interviews", interviewRouter)
 app.use("/api/v1/payments", paymentRouter)
+app.use("/api/v1/upload", uploadRouter)
 
 export {app};

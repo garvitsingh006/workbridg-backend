@@ -70,6 +70,10 @@ const userSchema = new Schema(
             type: Date,
             default: null,
         },
+        resume: {
+            type: String,
+            default: null,
+        },
     },
     { timestamps: true }
 );
