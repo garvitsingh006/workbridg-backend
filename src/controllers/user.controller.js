@@ -667,11 +667,18 @@ export const googleSignup = asyncHandler(async (req, res) => {
         isVerified: true,
     });
 
+    
     const createdUser = await User.findById(newUser._id).select(
         "-password -refreshToken"
     );
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+        createdUser._id
+    );
+    const options = { httpOnly: true, secure: true };
     return res
         .status(201)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
         .json(
             new ApiResponse(
                 201,
