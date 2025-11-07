@@ -6,7 +6,7 @@ import {upload} from "./middlewares/multer.middleware.js"
 const app = express();
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || "https://workbridg-test.vercel.app",
     credentials: true
 }))
 app.use(express.json("limit: 10mb"));
