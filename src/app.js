@@ -21,6 +21,12 @@ app.use((err, req, res, next) => {
     });
 });
 
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
+
 // import { Project } from "./models/project.model.js";
 // import { Payment } from "./models/payment.model.js";
 // import { Chat } from "./models/chat.model.js";

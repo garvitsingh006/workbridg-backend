@@ -403,15 +403,21 @@ const approveProjectForUser = asyncHandler(async (req, res) => { // admin will t
 
     const userId = req.params.userId;
     const { projectId } = req.body;
+    console.log("Approving project for user:", userId, projectId);
 
     const user = await User.findById(userId);
     const project = await Project.findById(projectId);
-    if (!user) throw new ApiError(404, "User not found");
-    if (!project) throw new ApiError(404, "Project not found");
 
+    console.log("Fetched user and project");
+    if (!user) throw new ApiError(404, "User not found");
+    console.log("User found");
+    if (!project) throw new ApiError(404, "Project not found");
+    console.log("Project found");
     if (user.approvedProjects.includes(projectId)) {
         throw new ApiError(404, "User is already approved!");
     }
+
+    console.log("user is not approved yet")
 
     project.assignedTo = userId;
     project.status = "in-progress";

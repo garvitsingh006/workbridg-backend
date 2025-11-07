@@ -1,16 +1,24 @@
 import mongoose from "mongoose";
 
 const paymentStageSchema = new mongoose.Schema({
-  orderId: { type: String },
-  paymentId: { type: String },
-  signature: { type: String },
+  cashfreeOrderId: { type: String },
+  cashfreePaymentId: { type: String },
+  cashfreeSignature: { type: String },
   amount: { type: Number, required: true },
+  currency: { type: String, default: "INR" },
   status: {
     type: String,
     enum: ["pending", "created", "paid", "failed"],
     default: "pending",
   },
+  customerName: { type: String },
+  customerEmail: { type: String },
+  customerPhone: { type: String },
+  paymentMethod: { type: String },
+  errorCode: { type: String },
+  errorMessage: { type: String },
   createdAt: { type: Date, default: Date.now },
+  completedAt: { type: Date },
 });
 
 const paymentSchema = new mongoose.Schema({
@@ -31,14 +39,15 @@ const paymentSchema = new mongoose.Schema({
   },
 
   totalAmount: { type: Number, required: true },
+  currency: { type: String, default: "INR" },
   platformFee: {
     serviceCharge: { type: Number, required: true },
     commissionFee: { type: Number, required: true },
   },
 
-//   advance: { type: paymentStageSchema, required: true },
-//   final: { type: paymentStageSchema, required: true },
-  total: {type: paymentStageSchema, required: true},
+  total: { type: paymentStageSchema, required: true },
+
+  rawCashfreeResponse: { type: mongoose.Schema.Types.Mixed },
 
   releaseAmount: { type: Number, default: 0 },
   releaseStatus: {
@@ -55,6 +64,7 @@ const paymentSchema = new mongoose.Schema({
       "final_paid",
       "released",
       "refunded",
+      "failed"
     ],
     default: "pending",
   },
