@@ -53,6 +53,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "none",
     };
 
     return res
@@ -166,10 +167,8 @@ const registerUser = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "none",
     };
-
-
-
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
@@ -181,6 +180,7 @@ const registerUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, createdUser, "User Created Successfully"));
 });
 
+// For email verification
 const verifyUser = asyncHandler(async (req, res) => {
     const { token } = req.query;
     console.log(token)
@@ -209,7 +209,6 @@ const verifyUser = asyncHandler(async (req, res) => {
     res.redirect("http://localhost:5173/login?verified=true");
 });
 
-
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
@@ -232,6 +231,11 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invaid User Credentials!");
     }
 
+    if (!user.refreshToken) {
+        console.log("No refresh token found for user");
+        throw new ApiError(401, "No refresh token found, please login again");
+    }
+
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
         user._id
     );
@@ -242,6 +246,7 @@ const loginUser = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "none",
     };
 
     return res
@@ -277,6 +282,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "none",
     };
 
     return res
@@ -680,7 +686,7 @@ export const googleSignup = asyncHandler(async (req, res) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
         createdUser._id
     );
-    const options = { httpOnly: true, secure: true };
+    const options = { httpOnly: true, secure: true, sameSite: "none" };
     return res
         .status(201)
         .cookie("accessToken", accessToken, options)
@@ -722,7 +728,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
         "-password  -refreshToken"
     );
 
-    const options = { httpOnly: true, secure: true };
+    const options = { httpOnly: true, secure: true, sameSite: "none" };
     return res
         .status(200)
         .cookie("accessToken", accessToken, options)
