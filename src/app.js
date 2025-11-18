@@ -5,6 +5,7 @@ import {upload} from "./middlewares/multer.middleware.js"
 
 const app = express();
 
+app.set("io", null);
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "https://workbridg-test.vercel.app",
     credentials: true

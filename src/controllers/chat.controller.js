@@ -81,6 +81,18 @@ const newMessage = asyncHandler(async (req, res) => {
         read: false,
     });
 
+    const io = req.app.get("io");
+    if (io) {
+        // emit only the new message
+        const lastMessage =
+            updatedChat.messages[updatedChat.messages.length - 1];
+
+        io.to(`chat:${chatId}`).emit("message:new", {
+            chatId,
+            message: lastMessage,
+        });
+    }
+
     res.status(200).json(
         new ApiResponse(200, updatedChat, "Message sent successfully")
     );
@@ -166,11 +178,20 @@ const newGroupChat = asyncHandler(async (req, res) => {
             );
         }
 
-        const existingChat = await Chat.findOne({ project: projectId, type: "group" });
+        const existingChat = await Chat.findOne({
+            project: projectId,
+            type: "group",
+        });
         if (existingChat) {
-            return res.status(400).json(new ApiError(400, "A group chat for this project already exists."));
+            return res
+                .status(400)
+                .json(
+                    new ApiError(
+                        400,
+                        "A group chat for this project already exists."
+                    )
+                );
         }
-
 
         const chat = await Chat.create({
             type: "group",
