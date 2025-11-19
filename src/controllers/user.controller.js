@@ -125,31 +125,40 @@ const registerUser = asyncHandler(async (req, res) => {
         );
     }
 
-    // Creating entry in User table
+    // Create verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpiry = Date.now() + 1000 * 60 * 30; // 30 minutes
 
+    // EMAIL TRANSPORTER (BREVO)
     const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        requireTLS: true,
-        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+        host: process.env.BREVO_SMTP_HOST,                   // smtp-relay.brevo.com
+        port: process.env.BREVO_SMTP_PORT,                   // 587
+        secure: false,
+        auth: {
+            user: process.env.BREVO_SMTP_USER,
+            pass: process.env.BREVO_SMTP_PASS,
+        },
     });
 
     const verificationLink = `${process.env.BACKEND_URL}/api/v1/users/verify?token=${verificationToken}`;
+
     try {
         await transporter.sendMail({
-            from: '"Workbridg" <garvitsingh006@gmail.com>',
+            from: `"Workbridg" <no-reply@workbridg.xyz>`,
             to: email,
             subject: "Verify your account",
-            html: `Click <a href="${verificationLink}">here</a> to verify your account.`
+            html: `Click <a href="${verificationLink}">here</a> to verify your account.`,
         });
     } catch (error) {
-        res.status(500).json({message: "Error sending verification email", success: false});
+        console.error("EMAIL ERROR:", error);
+        res.status(500).json({
+            message: "Error sending verification email",
+            success: false,
+        });
         return;
     }
 
+    // Create user
     const user = await User.create({
         username: username.toLowerCase(),
         fullName,
@@ -160,9 +169,8 @@ const registerUser = asyncHandler(async (req, res) => {
         isVerified: false,
     });
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
-        user._id
-    );
+    const { accessToken, refreshToken } =
+        await generateAccessAndRefreshToken(user._id);
 
     const options = {
         httpOnly: true,
@@ -173,6 +181,7 @@ const registerUser = asyncHandler(async (req, res) => {
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     );
+
     return res
         .status(201)
         .cookie("accessToken", accessToken, options)
@@ -183,7 +192,6 @@ const registerUser = asyncHandler(async (req, res) => {
 // For email verification
 const verifyUser = asyncHandler(async (req, res) => {
     const { token } = req.query;
-    console.log(token)
 
     if (!token) {
         throw new ApiError(400, "Verification token is required");
