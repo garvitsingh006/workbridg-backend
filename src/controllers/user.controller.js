@@ -108,7 +108,7 @@ const setRole = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
     const { username, fullName, email, password } = req.body;
 
-    if ([username, fullName, email, password].some(f => f?.trim() === "")) {
+    if ([username, fullName, email, password].some((f) => f?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
 
@@ -117,7 +117,10 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (existingUser) {
-        throw new ApiError(409, "There already exists a user with this username or email");
+        throw new ApiError(
+            409,
+            "There already exists a user with this username or email"
+        );
     }
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -128,19 +131,48 @@ const registerUser = asyncHandler(async (req, res) => {
     // SEND EMAIL USING RESEND (NO TRANSPORTER)
     try {
         const { error } = await resend.emails.send({
-            from: `Workbridg <no-reply@workbridg.xyz>`,
+            from: `Workbridg <verify@workbridg.xyz>`,
             to: email,
             subject: "Verify your account",
-            html: `Click <a href="${verificationLink}">here</a> to verify your account.`,
+            html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333;">
+            <h2 style="color: #4f46e5;">Welcome to Workbridg 👋</h2>
+
+            <p>Hi there,</p>
+
+            <p>Thanks for signing up! Before you can start using your account, please confirm your email by clicking the button below:</p>
+
+            <a href="${verificationLink}"
+                style="display: inline-block; padding: 12px 20px; margin-top: 15px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                Verify Email
+            </a>
+
+            <p style="margin-top: 25px;">
+                If the button doesn’t work, copy and paste this link into your browser:
+            </p>
+
+            <p style="word-break: break-all; color: #555;">
+                ${verificationLink}
+            </p>
+
+            <p style="margin-top: 30px;">Cheers,<br>The Workbridg Team</p>
+            </div>
+            `,
         });
 
         if (error) {
             console.error("RESEND ERROR:", error);
-            return res.status(500).json({ message: "Error sending verification email", success: false });
+            return res.status(500).json({
+                message: "Error sending verification email",
+                success: false,
+            });
         }
     } catch (err) {
         console.error("RESEND CATCH:", err);
-        return res.status(500).json({ message: "Error sending verification email", success: false });
+        return res.status(500).json({
+            message: "Error sending verification email",
+            success: false,
+        });
     }
 
     const user = await User.create({
@@ -153,7 +185,9 @@ const registerUser = asyncHandler(async (req, res) => {
         isVerified: false,
     });
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+        user._id
+    );
 
     const options = {
         httpOnly: true,
@@ -161,7 +195,9 @@ const registerUser = asyncHandler(async (req, res) => {
         sameSite: "none",
     };
 
-    const createdUser = await User.findById(user._id).select("-password -refreshToken");
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    );
 
     return res
         .status(201)
@@ -169,7 +205,6 @@ const registerUser = asyncHandler(async (req, res) => {
         .cookie("refreshToken", refreshToken, options)
         .json(new ApiResponse(200, createdUser, "User Created Successfully"));
 });
-
 
 // For email verification
 const verifyUser = asyncHandler(async (req, res) => {
@@ -182,7 +217,7 @@ const verifyUser = asyncHandler(async (req, res) => {
     // Find user with this token
     const user = await User.findOne({
         verificationToken: token,
-        verificationTokenExpiry: { $gt: Date.now() } // check not expired
+        verificationTokenExpiry: { $gt: Date.now() }, // check not expired
     });
 
     if (!user) {
@@ -201,7 +236,7 @@ const verifyUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    
+
     if (!(email || password)) {
         throw new ApiError(400, "All fields are required!");
     }
@@ -213,7 +248,10 @@ const loginUser = asyncHandler(async (req, res) => {
 
     // check email verification
     if (!user.isVerified) {
-        throw new ApiError(403, "Email is not verified. Please verify your email to proceed");
+        throw new ApiError(
+            403,
+            "Email is not verified. Please verify your email to proceed"
+        );
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
@@ -356,8 +394,8 @@ const getClients = asyncHandler(async (req, res) => {
         );
 });
 
-
-const userApplicationChosenByClient = asyncHandler(async (req, res) => { // Client will do this
+const userApplicationChosenByClient = asyncHandler(async (req, res) => {
+    // Client will do this
     const { projectId, userId } = req.params;
 
     // Find the project
@@ -388,11 +426,16 @@ const userApplicationChosenByClient = asyncHandler(async (req, res) => { // Clie
     await project.save();
 
     res.status(200).json(
-        new ApiResponse(200, project, "Application selected, others removed, and project set to pending")
+        new ApiResponse(
+            200,
+            project,
+            "Application selected, others removed, and project set to pending"
+        )
     );
 });
 
-const approveProjectForUser = asyncHandler(async (req, res) => { // admin will then do this
+const approveProjectForUser = asyncHandler(async (req, res) => {
+    // admin will then do this
     if (req.user.role !== "admin") {
         throw new ApiError(403, "Only admins can approve project applications");
     }
@@ -413,12 +456,15 @@ const approveProjectForUser = asyncHandler(async (req, res) => { // admin will t
         throw new ApiError(404, "User is already approved!");
     }
 
-    console.log("user is not approved yet")
+    console.log("user is not approved yet");
 
     project.assignedTo = userId;
     project.status = "in-progress";
     await project.save();
-    console.log("Status of the project is after changing it to in-progress", project.status)
+    console.log(
+        "Status of the project is after changing it to in-progress",
+        project.status
+    );
 
     if (!user.approvedProjects.includes(projectId)) {
         user.approvedProjects.push(projectId);
@@ -450,10 +496,15 @@ const projectInProgress = asyncHandler(async (req, res) => {
     await project.save();
 
     res.status(200).json(
-        new ApiResponse(200, project, "Project status updated to in-progress and freelancer assigned")
+        new ApiResponse(
+            200,
+            project,
+            "Project status updated to in-progress and freelancer assigned"
+        )
     );
 });
-const rejectProjectForUser = asyncHandler(async (req, res) => { // admin will do this
+const rejectProjectForUser = asyncHandler(async (req, res) => {
+    // admin will do this
     if (req.user.role !== "admin") {
         throw new ApiError(403, "Only admins can reject project applications");
     }
@@ -476,7 +527,6 @@ const rejectProjectForUser = asyncHandler(async (req, res) => { // admin will do
         new ApiResponse(200, user.rejectedProjects, "Project rejected")
     );
 });
-
 
 // Get accepted projects for a user (populated)
 const getApprovedProjects = asyncHandler(async (req, res) => {
@@ -669,7 +719,6 @@ export const googleSignup = asyncHandler(async (req, res) => {
         isVerified: true,
     });
 
-    
     const createdUser = await User.findById(newUser._id).select(
         "-password -refreshToken"
     );
