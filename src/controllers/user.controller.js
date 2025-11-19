@@ -137,7 +137,7 @@ const registerUser = asyncHandler(async (req, res) => {
         auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
     });
 
-    const verificationLink = `http://localhost:8000/api/v1/users/verify?token=${verificationToken}`;
+    const verificationLink = `${process.env.BACKEND_URL}/api/v1/users/verify?token=${verificationToken}`;
     try {
         await transporter.sendMail({
             from: '"Workbridg" <garvitsingh006@gmail.com>',
@@ -206,7 +206,7 @@ const verifyUser = asyncHandler(async (req, res) => {
     await user.save();
 
     // Respond or redirect
-    res.redirect("http://localhost:5173/login?verified=true");
+    res.redirect(`${process.env.FRONTEND_URL}/login?verified=true`);
 });
 
 const loginUser = asyncHandler(async (req, res) => {

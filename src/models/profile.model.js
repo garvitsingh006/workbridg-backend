@@ -3,41 +3,50 @@ const { Schema } = mongoose;
 
 /* ------------------ FREELANCER SCHEMA ------------------ */
 const freelancerSchema = new Schema(
-    {
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-            unique: true,
-        },
-        location: { type: String, trim: true },
-        workField: { type: String, required: true, trim: true },
-        workExperience: [
-            {
-                title: { type: String, required: true, trim: true },
-                company: { type: String },
-                years: { type: Number, required: true, default: 0 },
-                description: { type: String, trim: true },
-            },
-        ],
-        skills: {
-            type: [String],
-            set: (skills) => [
-                ...new Set(skills.map((s) => s.trim().toLowerCase())),
-            ],
-        },
-        linkedIn: { type: String, trim: true },
-        github: { type: String, trim: true },
-        preferredRole: { type: String, trim: true },
-        resume: { type: String },
-        bio: { type: String, maxLength: 500 },
-        rating: { type: Number, default: 0, min: 0, max: 5 },
-        ratingCount: { type: Number, default: 0 },
-        completedProjects: { type: Number, default: 0 },
-        earnings: { type: Number, default: 0 },
-    },
-    { timestamps: true }
+    {
+        user: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            unique: true,
+        },
+        location: { type: String, trim: true },
+        workField: { type: String, required: true, trim: true },
+        workExperience: [
+            {
+                title: { type: String, required: true, trim: true },
+                company: { type: String },
+                years: { type: Number, required: true, default: 0 },
+                description: { type: String, trim: true },
+            },
+        ],
+        skills: {
+            type: [String],
+            set: (skills) => [
+                ...new Set(skills.map((s) => s.trim().toLowerCase())),
+            ],
+        },
+        linkedIn: { type: String, trim: true },
+        github: { type: String, trim: true },
+        preferredRole: { type: String, trim: true },
+        resume: { type: String, required: true },
+        bio: { type: String, maxLength: 500 },
+        ratingDetails: {
+            technical: { type: Number, default: 0, min: 0, max: 5 },
+            communication: { type: Number, default: 0, min: 0, max: 5 },
+            professionalism: { type: Number, default: 0, min: 0, max: 5 },
+            speed: { type: Number, default: 0, min: 0, max: 5 },
+            pastWork: { type: Number, default: 0, min: 0, max: 5 },
+        },
+        rating: { type: Number, default: 0, min: 0, max: 5 },
+        ratingCount: { type: Number, default: 0 },
+        completedProjects: { type: Number, default: 0 },
+        earnings: { type: Number, default: 0 },
+        pay_per_hour: { type: Number, default: 0 },
+    },
+    { timestamps: true }
 );
+
 
 /* Freelancer instance methods */
 freelancerSchema.methods.addExperience = async function (exp) {
@@ -81,8 +90,6 @@ const clientSchema = new Schema(
         companySize: { type: String, trim: true },
         industry: { type: String, trim: true },
         location: { type: String, trim: true },
-        budgetRange: { type: String, trim: true },
-        preferredCommunication: { type: String, trim: true },
         projectTypes: {
             type: [String],
             set: (arr) => [...new Set(arr.map((p) => p.trim().toLowerCase()))],
