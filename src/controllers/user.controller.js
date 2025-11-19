@@ -132,8 +132,8 @@ const registerUser = asyncHandler(async (req, res) => {
     // EMAIL TRANSPORTER (BREVO)
     const transporter = nodemailer.createTransport({
         host: process.env.BREVO_SMTP_HOST,                   // smtp-relay.brevo.com
-        port: process.env.BREVO_SMTP_PORT,                   // 587
-        secure: false,
+        port: 465,                   // 587
+        secure: true,
         auth: {
             user: process.env.BREVO_SMTP_USER,
             pass: process.env.BREVO_SMTP_PASS,
