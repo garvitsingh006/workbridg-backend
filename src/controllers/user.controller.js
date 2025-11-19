@@ -7,6 +7,9 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -105,60 +108,41 @@ const setRole = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
     const { username, fullName, email, password } = req.body;
 
-    // Check if fields are empty
-    if (
-        [username, fullName, email, password].some(
-            (field) => field?.trim() === ""
-        )
-    ) {
+    if ([username, fullName, email, password].some(f => f?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
 
-    // Check existing user
     const existingUser = await User.findOne({
         $or: [{ email }, { username }],
     });
+
     if (existingUser) {
-        throw new ApiError(
-            409,
-            "There already exists a user with this username or email"
-        );
+        throw new ApiError(409, "There already exists a user with this username or email");
     }
 
-    // Create verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpiry = Date.now() + 1000 * 60 * 30; // 30 minutes
-
-    // EMAIL TRANSPORTER (BREVO)
-    const transporter = nodemailer.createTransport({
-        host: process.env.BREVO_SMTP_HOST,                   // smtp-relay.brevo.com
-        port: 465,                   // 587
-        secure: true,
-        auth: {
-            user: process.env.BREVO_SMTP_USER,
-            pass: process.env.BREVO_SMTP_PASS,
-        },
-    });
+    const tokenExpiry = Date.now() + 1000 * 60 * 30;
 
     const verificationLink = `${process.env.BACKEND_URL}/api/v1/users/verify?token=${verificationToken}`;
 
+    // SEND EMAIL USING RESEND (NO TRANSPORTER)
     try {
-        await transporter.sendMail({
-            from: `"Workbridg" <no-reply@workbridg.xyz>`,
+        const { error } = await resend.emails.send({
+            from: `Workbridg <no-reply@workbridg.xyz>`,
             to: email,
             subject: "Verify your account",
             html: `Click <a href="${verificationLink}">here</a> to verify your account.`,
         });
-    } catch (error) {
-        console.error("EMAIL ERROR:", error);
-        res.status(500).json({
-            message: "Error sending verification email",
-            success: false,
-        });
-        return;
+
+        if (error) {
+            console.error("RESEND ERROR:", error);
+            return res.status(500).json({ message: "Error sending verification email", success: false });
+        }
+    } catch (err) {
+        console.error("RESEND CATCH:", err);
+        return res.status(500).json({ message: "Error sending verification email", success: false });
     }
 
-    // Create user
     const user = await User.create({
         username: username.toLowerCase(),
         fullName,
@@ -169,8 +153,7 @@ const registerUser = asyncHandler(async (req, res) => {
         isVerified: false,
     });
 
-    const { accessToken, refreshToken } =
-        await generateAccessAndRefreshToken(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
 
     const options = {
         httpOnly: true,
@@ -178,9 +161,7 @@ const registerUser = asyncHandler(async (req, res) => {
         sameSite: "none",
     };
 
-    const createdUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    );
+    const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
     return res
         .status(201)
@@ -188,6 +169,7 @@ const registerUser = asyncHandler(async (req, res) => {
         .cookie("refreshToken", refreshToken, options)
         .json(new ApiResponse(200, createdUser, "User Created Successfully"));
 });
+
 
 // For email verification
 const verifyUser = asyncHandler(async (req, res) => {
@@ -219,7 +201,7 @@ const verifyUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-
+    
     if (!(email || password)) {
         throw new ApiError(400, "All fields are required!");
     }
