@@ -10,12 +10,12 @@ const interviewSchema = new Schema(
         interviewer: {
             type: Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            required: false,
         },
         mode: {
             type: String,
             enum: ["online", "offline"],
-            default: "Online",
+            default: "online",
         },
         platform: {
             type: String, // e.g., Google Meet, Zoom
@@ -41,14 +41,29 @@ const interviewSchema = new Schema(
             type: String,
             trim: true,
         },
+        // requested: freelancer requested a slot (no interviewer yet)
+        // reschedule_requested: admin requested the freelancer to pick a new slot
+        // pending: generic pending state (legacy)
+        // scheduled: interviewer assigned and confirmed
         status: {
             type: String,
-            enum: ["pending", "scheduled", "completed", "cancelled"],
-            default: "pending",
+            enum: ["requested", "reschedule_requested", "pending", "scheduled", "completed", "cancelled"],
+            default: "requested",
+        },
+        preferredRole: {
+            type: String,
+            trim: true,
         },
         feedback: {
             type: String,
             default: "",
+        },
+        ratingDetails: {
+            technical: { type: Number, default: 0, min: 0, max: 5 },
+            communication: { type: Number, default: 0, min: 0, max: 5 },
+            professionalism: { type: Number, default: 0, min: 0, max: 5 },
+            speed: { type: Number, default: 0, min: 0, max: 5 },
+            pastWork: { type: Number, default: 0, min: 0, max: 5 },
         },
         rating: {
             type: Number,
