@@ -4,9 +4,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { FreelancerProfile, ClientProfile } from "../models/profile.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
-
-
-
 const setProfile = asyncHandler(async (req, res) => {
     try {
         if (!req.user) {
@@ -24,19 +21,21 @@ const setProfile = asyncHandler(async (req, res) => {
         let profile = await ProfileModel.findOne({ user: userId });
         console.log("Existing profile:", profile);
 
-        // allowed fields based on role
+        // allowed fields based on role (kept in sync with profile.model.js)
+        // Only include fields intended to be set/updated by the user.
         const allowedFields =
             role === "freelancer"
                 ? [
                       "location",
                       "workField",
-                      "preferredRole",
-                      "skills",
                       "workExperience",
+                      "skills",
                       "linkedIn",
                       "github",
-                      "bio",
+                      "preferredRole",
                       "resume",
+                      "bio",
+                      "pay_per_hour",
                   ]
                 : [
                       "companyName",
@@ -44,8 +43,6 @@ const setProfile = asyncHandler(async (req, res) => {
                       "companySize",
                       "industry",
                       "location",
-                      "budgetRange",
-                      "preferredCommunication",
                       "projectTypes",
                       "website",
                       "linkedIn",
@@ -105,6 +102,18 @@ const setProfile = asyncHandler(async (req, res) => {
             }
         }
 
+        // normalize numeric fields for freelancer (e.g., pay_per_hour)
+        if (role === "freelancer" && req.body.pay_per_hour !== undefined) {
+            const n = Number(req.body.pay_per_hour);
+            if (!Number.isNaN(n)) {
+                // save normalized number in request body so pick-up works
+                req.body.pay_per_hour = n;
+            } else {
+                // if can't parse, remove to avoid saving invalid data
+                delete req.body.pay_per_hour;
+            }
+        }
+
         // pick allowed fields
         allowedFields.forEach((f) => {
             if (req.body[f] !== undefined) data[f] = req.body[f];
@@ -151,6 +160,7 @@ const getProfile = asyncHandler(async (req, res) => {
     try {
         const username = req.params.username;
 
+        console.log('getProfile requested username:', username);
         const user = await User.findOne({ username: username });
         if (!user) throw new ApiError(404, "User not found!");
 
@@ -173,19 +183,110 @@ const getProfile = asyncHandler(async (req, res) => {
         let publicProfile = profile.toObject();
 
         if (role === "freelancer") {
-            publicProfile.workExperience = profile.workExperience.map((w) => ({
-                title: w.title,
-                company: w.company,
-                years: w.years,
-            }));
+            publicProfile.workExperience = Array.isArray(profile.workExperience)
+                ? profile.workExperience.map((w) => ({
+                      title: w.title,
+                      company: w.company,
+                      years: w.years,
+                  }))
+                : [];
         }
 
         return res.status(200).json(new ApiResponse(200, publicProfile));
     } catch (error) {
-        return res
-            .status(502)
-            .json({ message: "From outside try catch block" });
+        console.error('getProfile error:', error);
+        const msg = error?.message || 'Failed to load profile';
+        return res.status(500).json(new ApiResponse(500, null, msg));
     }
 });
 
-export { getProfile, setProfile };
+// (exports are declared at the end of this file)
+
+const listFreelancerSummaries = asyncHandler(async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, parseInt(req.query.limit) || 12);
+        const skip = (page - 1) * limit;
+
+        const skills = req.query.skills ? String(req.query.skills).split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
+        const minRating = req.query.minRating ? Number(req.query.minRating) : 0;
+        const location = req.query.location ? String(req.query.location).trim() : null;
+        const workField = req.query.workField ? String(req.query.workField).trim() : null;
+        const sortBy = req.query.sortBy || 'rating'; // rating | experience | completed
+        const order = req.query.order === 'asc' ? 1 : -1;
+
+        const match = {};
+        if (skills.length > 0) match.skills = { $in: skills };
+        if (minRating > 0) match.rating = { $gte: minRating };
+        if (location) match.location = { $regex: new RegExp(location, 'i') };
+        if (workField) match.workField = { $regex: new RegExp(workField, 'i') };
+
+        // Build sort object
+        let sortObj = {};
+        if (sortBy === 'experience') sortObj.totalYears = order;
+        else if (sortBy === 'completed') sortObj.completedProjects = order;
+        else sortObj.rating = order;
+
+        const pipeline = [];
+        if (Object.keys(match).length > 0) pipeline.push({ $match: match });
+
+        // compute totalYears
+        pipeline.push({
+            $addFields: {
+                totalYears: { $sum: { $map: { input: { $ifNull: ["$workExperience", []] }, as: "w", in: { $ifNull: ["$$w.years", 0] } } } }
+            }
+        });
+
+        // join user
+        pipeline.push({
+            $lookup: {
+                from: 'users',
+                localField: 'user',
+                foreignField: '_id',
+                as: 'user'
+            }
+        });
+        pipeline.push({ $unwind: '$user' });
+
+        pipeline.push({
+            $project: {
+                _id: 1,
+                user: { username: '$user.username', fullName: '$user.fullName', createdAt: '$user.createdAt' },
+                location: 1,
+                workField: 1,
+                skills: 1,
+                rating: 1,
+                ratingCount: 1,
+                completedProjects: 1,
+                isInterviewed: 1,
+                pay_per_hour: 1,
+                bio: 1,
+                totalYears: 1,
+                createdAt: 1
+            }
+        });
+
+        pipeline.push({ $sort: sortObj });
+
+        // facet for pagination
+        pipeline.push({
+            $facet: {
+                metadata: [{ $count: 'total' }],
+                data: [{ $skip: skip }, { $limit: limit }]
+            }
+        });
+
+        const results = await FreelancerProfile.aggregate(pipeline);
+        const metadata = results[0]?.metadata[0] || { total: 0 };
+        let data = results[0]?.data || [];
+        // filter out any entries without a username (defensive)
+        data = data.filter(d => d && d.user && d.user.username);
+
+        return res.status(200).json(new ApiResponse(200, { page, limit, total: metadata.total, data }));
+    } catch (error) {
+        console.error('List freelancers error', error);
+        throw new ApiError(500, 'Failed to list freelancer summaries');
+    }
+});
+
+export { getProfile, setProfile, listFreelancerSummaries };

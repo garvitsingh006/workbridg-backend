@@ -43,6 +43,7 @@ const freelancerSchema = new Schema(
         completedProjects: { type: Number, default: 0 },
         earnings: { type: Number, default: 0 },
         pay_per_hour: { type: Number, default: 0 },
+        isInterviewed: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

@@ -49,10 +49,6 @@ const userSchema = new Schema(
         interviews: [
             { type: Schema.Types.ObjectId, ref: "Interview" } // quick lookup
         ],
-        isInterviewed: {
-            type: Boolean,
-            default: false
-        },
         approvedProjects: [
             { type: Schema.Types.ObjectId, ref: "Project" }
         ],
