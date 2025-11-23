@@ -172,7 +172,7 @@ const getProfile = asyncHandler(async (req, res) => {
         const profile = await ProfileModel.findOne({ user: user._id }).populate(
             {
                 path: "user",
-                select: "username role fullName",
+                select: "username role fullName isInterviewed createdAt",
             }
         );
 

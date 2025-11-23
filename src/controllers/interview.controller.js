@@ -249,6 +249,7 @@ const assignInterviewToFreelancer = asyncHandler(async (req, res) => {
         link,
         dateTime,
         duration,
+        notes,
     } = req.body;
 
     // Validate data
@@ -264,46 +265,75 @@ const assignInterviewToFreelancer = asyncHandler(async (req, res) => {
     if (!freelancer) throw new ApiError(404, "Freelancer not found");
 
     // Check if interviewer exists
-      const interviewer = await User.findById(interviewerId);
-      if (!interviewer || interviewer.role !== "interviewer") {
+    const interviewer = await User.findById(interviewerId);
+    if (!interviewer || interviewer.role !== "interviewer") {
         throw new ApiError(400, "Invalid interviewer ID");
-      }
-
-    const existingInterview = await Interview.findOne({
-        freelancer: freelancerId,
-        status: "scheduled",
-    });
-    if (existingInterview) {
-        throw new ApiError(400, "Freelancer already has an active interview");
     }
 
-    // Create interview
-    const interview = await Interview.create({
+    // Check if freelancer already has a scheduled interview
+    const scheduledInterview = await Interview.findOne({
         freelancer: freelancerId,
-        interviewer: interviewerId,
-        mode,
-        platform,
-        link,
-        dateTime,
-        duration,
-        timezone: "Asia/Kolkata",
         status: "scheduled",
     });
-    await interview.populate("interviewer", "fullName email");
+    if (scheduledInterview) {
+        throw new ApiError(400, "Freelancer already has a scheduled interview");
+    }
 
-    // Optionally mark freelancer as interviewed (for admin dashboard filtering)
-      freelancer.isInterviewed = true;
-    freelancer.interviews.push(interview._id);
-    interview.status = "scheduled";
-    await freelancer.save();
+    // Look for existing requested interview to update
+    const existingRequest = await Interview.findOne({
+        freelancer: freelancerId,
+        status: { $in: ["requested", "reschedule_requested"] },
+    });
+
+    let interview;
+    if (existingRequest) {
+        // Update existing request
+        existingRequest.interviewer = interviewerId;
+        existingRequest.mode = mode;
+        existingRequest.platform = platform;
+        existingRequest.link = link;
+        existingRequest.dateTime = dateTime;
+        existingRequest.duration = duration || 30;
+        existingRequest.timezone = "Asia/Kolkata";
+        existingRequest.status = "scheduled";
+        if (notes) existingRequest.notes = notes;
+        
+        interview = await existingRequest.save();
+        await interview.populate("interviewer", "fullName email");
+    } else {
+        // Create new interview if no existing request
+        interview = await Interview.create({
+            freelancer: freelancerId,
+            interviewer: interviewerId,
+            mode,
+            platform,
+            link,
+            dateTime,
+            duration: duration || 30,
+            timezone: "Asia/Kolkata",
+            status: "scheduled",
+            notes,
+        });
+        await interview.populate("interviewer", "fullName email");
+        
+        // Add to freelancer's interviews array only for new interviews
+        freelancer.interviews.push(interview._id);
+    }
+
+    // Mark freelancer as interviewed in profile
+    const freelancerProfile = await FreelancerProfile.findOne({ user: freelancerId });
+    if (freelancerProfile) {
+        freelancerProfile.isInterviewed = true;
+        await freelancerProfile.save();
+    }
 
     return res
-        .status(201)
+        .status(200)
         .json(
             new ApiResponse(
-                201,
+                200,
                 interview,
-                "Interview assigned successfully and freelancer updated"
+                "Interview assigned successfully"
             )
         );
 });
@@ -371,6 +401,15 @@ const updateInterviewStatus = asyncHandler(async (req, res) => {
     interview.status = status;
     await interview.save();
 
+    // Mark freelancer as interviewed when completed
+    if (!wasCompleted && willBeCompleted && interview.freelancer) {
+        const freelancerProfile = await FreelancerProfile.findOne({ user: interview.freelancer });
+        if (freelancerProfile) {
+            freelancerProfile.isInterviewed = true;
+            await freelancerProfile.save();
+        }
+    }
+
     // Increment total interviews only on the transition to completed
     if (!wasCompleted && willBeCompleted) {
         await Interviewer.findOneAndUpdate(
@@ -406,7 +445,7 @@ const submitInterviewFeedback = asyncHandler(async (req, res) => {
     }
 
     if (rating !== undefined) {
-        const parsed = Number(rating);
+        const parsed = parseFloat(rating);
         if (Number.isNaN(parsed) || parsed < 1 || parsed > 5) {
             throw new ApiError(400, "Rating must be a number between 1 and 5");
         }
@@ -417,7 +456,7 @@ const submitInterviewFeedback = asyncHandler(async (req, res) => {
         const validFields = ['technical', 'communication', 'professionalism', 'speed', 'pastWork'];
         for (const field of validFields) {
             if (ratingDetails[field] !== undefined) {
-                const value = Number(ratingDetails[field]);
+                const value = parseFloat(ratingDetails[field]);
                 if (!Number.isNaN(value) && value >= 0 && value <= 5) {
                     interview.ratingDetails[field] = value;
                 }
@@ -438,22 +477,30 @@ const submitInterviewFeedback = asyncHandler(async (req, res) => {
 
     await interview.save();
 
-    // Update freelancer profile with ratings
-    if (ratingDetails && interview.freelancer) {
+    // Update freelancer profile with ratings and mark as interviewed when completed
+    if (interview.freelancer) {
         const freelancerProfile = await FreelancerProfile.findOne({ user: interview.freelancer });
         if (freelancerProfile) {
-            // Update detailed ratings
-            const validFields = ['technical', 'communication', 'professionalism', 'speed', 'pastWork'];
-            for (const field of validFields) {
-                if (ratingDetails[field] !== undefined) {
-                    freelancerProfile.ratingDetails[field] = ratingDetails[field];
+            if (interview.status === "completed") {
+                freelancerProfile.isInterviewed = true;
+            }
+            
+            if (ratingDetails) {
+                // Update detailed ratings
+                const validFields = ['technical', 'communication', 'professionalism', 'speed', 'pastWork'];
+                for (const field of validFields) {
+                    if (ratingDetails[field] !== undefined) {
+                        freelancerProfile.ratingDetails[field] = ratingDetails[field];
+                    }
                 }
             }
+            
             // Update overall rating
             if (rating !== undefined) {
                 freelancerProfile.rating = rating;
                 freelancerProfile.ratingCount = (freelancerProfile.ratingCount || 0) + 1;
             }
+            
             await freelancerProfile.save();
         }
     }
