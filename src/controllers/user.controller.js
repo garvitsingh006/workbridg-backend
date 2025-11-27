@@ -657,6 +657,37 @@ const resetPassword = asyncHandler(async (req, res) => {
         );
 });
 
+const getUserById = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    
+    const user = await User.findById(userId).select("-password -refreshToken");
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    
+    return res.status(200).json(new ApiResponse(200, user, "User fetched successfully"));
+});
+
+const deleteAccount = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    
+    // Delete user from database
+    await User.findByIdAndDelete(userId);
+    
+    // Clear cookies
+    const options = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+    };
+    
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "Account deleted successfully"));
+});
+
 export {
     registerUser,
     loginUser,
@@ -664,6 +695,7 @@ export {
     logoutUser,
     meUser,
     getAllUsers,
+    getUserById,
     refreshAccessToken,
     setRole,
     approveProjectForUser,
@@ -677,6 +709,7 @@ export {
     getClients,
     forgotPassword,
     resetPassword,
+    deleteAccount,
 };
 
 // Google OAuth controllers

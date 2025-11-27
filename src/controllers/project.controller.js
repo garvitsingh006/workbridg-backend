@@ -10,33 +10,41 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "User must be a client!");
     }
 
-    const { title, description, deadline } = req.body;
+    const { title, description, deadline, budget } = req.body;
 
     if (title.trim() === "" || description.trim() === "") {
         throw new ApiError(400, "Title and/or Description are required!");
+    }
+
+    if (!budget || budget <= 0) {
+        throw new ApiError(400, "Budget is required and must be greater than 0!");
     }
 
     const project = await Project.create({
         title,
         description,
         deadline,
+        budget,
         createdBy: userId,
     });
 
-    // Populate user fields
+    // Populate user fields with error handling
     const populatedProject = await Project.findById(project._id)
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     const formattedProject = formatProject(populatedProject);
 
@@ -48,18 +56,21 @@ const newProject = asyncHandler(async (req, res) => {
 const getProject = asyncHandler(async (req, res) => {
     const projectId = req.params.id;
     const project = await Project.findById(projectId)
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     if (!project) {
         throw new ApiError(404, "Project not found!");
@@ -74,18 +85,21 @@ const fetchAllUserProjects = asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
     const projects = await Project.find({ createdBy: userId })
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        ) // populate all needed fields
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     // Map _id to id and build nested objects
     const formattedProjects = projects.map(formatProject);
@@ -105,18 +119,21 @@ const fetchAllProjects = asyncHandler(async (req, res) => {
 
     // Fetch and populate just like your single/fetch endpoints
     const projects = await Project.find({})
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     // Format every project for the response
     const formattedProjects = projects.map(formatProject);
@@ -154,13 +171,14 @@ const updateProject = asyncHandler(async (req, res) => {
         );
     }
 
-    const { title, description, deadline, status } = req.body;
+    const { title, description, deadline, status, budget } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (deadline !== undefined) updateData.deadline = deadline;
     if (status !== undefined) updateData.status = status;
+    if (budget !== undefined) updateData.budget = budget;
 
     await Project.findByIdAndUpdate(
         projectId,
@@ -169,18 +187,21 @@ const updateProject = asyncHandler(async (req, res) => {
     );
 
     const updatedProject = await Project.findById(projectId)
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     res.status(200).json(
         new ApiResponse(
@@ -196,22 +217,25 @@ const deleteProject = asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
     const project = await Project.findById(projectId)
-        .populate(
-            "createdBy",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "assignedTo",
-            "username email fullName role createdAt updatedAt"
-        )
-        .populate(
-            "remarks.by",
-            "username email fullName role createdAt updatedAt"
-        );
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "remarks.by",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
 
     if (!project) throw new ApiError(404, "Project not found");
 
-    if (project.createdBy._id.toString() !== userId.toString()) {
+    if (!project.createdBy || project.createdBy._id.toString() !== userId.toString()) {
         throw new ApiError(403, "Unauthorized request!");
     }
 
@@ -231,9 +255,9 @@ const applyToProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Only freelancers can apply to projects");
     }
     const { projectId } = req.params;
-    const { deadline, expectedPayment } = req.body;
-    if (!deadline || !expectedPayment) {
-        throw new ApiError(400, "Deadline and expected payment are required");
+    const { proposalSummary, estimatedDelivery, addOns } = req.body;
+    if (!proposalSummary || !estimatedDelivery) {
+        throw new ApiError(400, "Proposal summary and estimated delivery are required");
     }
 
     const project = await Project.findById(projectId);
@@ -258,8 +282,9 @@ const applyToProject = asyncHandler(async (req, res) => {
     project.applications.push({
         applicant: req.user._id,
         username: req.user.username,
-        deadline,
-        expectedPayment,
+        proposalSummary,
+        estimatedDelivery,
+        addOns: addOns || '',
         appliedAt: new Date(),
     });
 
@@ -285,8 +310,9 @@ const getProjectApplications = asyncHandler(async (req, res) => {
         applicant: app.applicant
             ? { _id: app.applicant._id, fullName: app.applicant.fullName }
             : null,
-        deadline: app.deadline,
-        expectedPayment: app.expectedPayment,
+        proposalSummary: app.proposalSummary,
+        estimatedDelivery: app.estimatedDelivery,
+        addOns: app.addOns,
         appliedAt: app.appliedAt,
     }));
 
@@ -317,8 +343,9 @@ const getChosenApplications = asyncHandler(async (req, res) => {
             applicant: app.applicant
                 ? { _id: app.applicant._id, fullName: app.applicant.fullName }
                 : null,
-            deadline: app.deadline,
-            expectedPayment: app.expectedPayment,
+            proposalSummary: app.proposalSummary,
+            estimatedDelivery: app.estimatedDelivery,
+            addOns: app.addOns,
             appliedAt: app.appliedAt,
         }));
 

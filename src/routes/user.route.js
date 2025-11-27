@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, refreshAccessToken, setRole, approveProjectForUser, projectInProgress, userApplicationChosenByClient,
+import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, getUserById, refreshAccessToken, setRole, approveProjectForUser, projectInProgress, userApplicationChosenByClient,
     rejectProjectForUser,
     getApprovedProjects,
     getRejectedProjects,
@@ -9,7 +9,8 @@ import { loginUser, registerUser, verifyUser, logoutUser, meUser, getAllUsers, r
     googleSignup,
     googleLogin,
     forgotPassword,
-    resetPassword } from "../controllers/user.controller.js";
+    resetPassword,
+    deleteAccount } from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
@@ -21,6 +22,7 @@ router.route("/login").post(loginUser)
 // secure routes
 router.route("/logout").post(verifyJWT, logoutUser)
 router.route("/me").get(verifyJWT, meUser)
+router.route("/delete-account").delete(verifyJWT, deleteAccount)
 router.route('/all').get(verifyJWT, getAllUsers)
 router.route('/auth/refresh-token').post(verifyJWT, refreshAccessToken)
 router.route('/set-role').post(verifyJWT, setRole)
@@ -29,6 +31,9 @@ router.route('/set-role').post(verifyJWT, setRole)
 router.route('/getInterviewers').get(verifyJWT, checkEmailVerified, getInterviewers)
 router.route('/getFreelancers').get(verifyJWT, checkEmailVerified, getFreelancers)
 router.route('/getClients').get(verifyJWT, checkEmailVerified, getClients)
+
+// This must come after specific routes to avoid conflicts
+router.route('/:userId').get(verifyJWT, getUserById)
 
 router.route('/:userId/projects/:projectId/chooseApplication')
     .post(verifyJWT, checkEmailVerified, userApplicationChosenByClient);

@@ -289,4 +289,43 @@ const listFreelancerSummaries = asyncHandler(async (req, res) => {
     }
 });
 
-export { getProfile, setProfile, listFreelancerSummaries };
+const getProfileByUserId = asyncHandler(async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        const user = await User.findById(userId);
+        if (!user) throw new ApiError(404, "User not found!");
+
+        const { role } = user;
+        const ProfileModel = role === "freelancer" ? FreelancerProfile : ClientProfile;
+
+        const profile = await ProfileModel.findOne({ user: userId }).populate({
+            path: "user",
+            select: "username role fullName isInterviewed createdAt",
+        });
+
+        if (!profile || !profile.user) {
+            throw new ApiError(404, "Profile not found!");
+        }
+
+        let publicProfile = profile.toObject();
+
+        if (role === "freelancer") {
+            publicProfile.workExperience = Array.isArray(profile.workExperience)
+                ? profile.workExperience.map((w) => ({
+                      title: w.title,
+                      company: w.company,
+                      years: w.years,
+                  }))
+                : [];
+        }
+
+        return res.status(200).json(new ApiResponse(200, publicProfile));
+    } catch (error) {
+        console.error('getProfileByUserId error:', error);
+        const msg = error?.message || 'Failed to load profile';
+        return res.status(500).json(new ApiResponse(500, null, msg));
+    }
+});
+
+export { getProfile, setProfile, listFreelancerSummaries, getProfileByUserId };

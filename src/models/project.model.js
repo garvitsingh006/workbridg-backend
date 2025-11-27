@@ -35,6 +35,11 @@ const projectSchema = new Schema(
         deadline: {
             type: Date,
         },
+        budget: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
         remarks: [
             {
                 by: {
@@ -55,6 +60,9 @@ const projectSchema = new Schema(
                 username: {type: String, ref: "User"},
                 deadline: String,
                 expectedPayment: String,
+                proposalSummary: String,
+                estimatedDelivery: String,
+                addOns: String,
                 appliedAt: Date,
                 isChosenByClient: { type: Boolean, default: false },
             },

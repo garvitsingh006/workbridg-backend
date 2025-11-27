@@ -23,6 +23,7 @@ export function formatProject(project) {
         } : null,
         status: project.status,
         deadline: project.deadline,
+        budget: project.budget,
         remarks: project.remarks.map(remark => ({
             by: remark.by ? {
                 id: remark.by._id.toString(),

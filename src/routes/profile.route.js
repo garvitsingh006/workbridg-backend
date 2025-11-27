@@ -2,7 +2,7 @@ import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
-import { getProfile, setProfile, listFreelancerSummaries } from "../controllers/profile.controller.js";
+import { getProfile, setProfile, listFreelancerSummaries, getProfileByUserId } from "../controllers/profile.controller.js";
 
 const router = Router();
 
@@ -19,5 +19,8 @@ router.route("/me").post(
 
 // Public: anyone can view by username
 router.route("/:username").get(verifyJWT, checkEmailVerified, getProfile);
+
+// Get profile by user ID
+router.route("/user/:userId").get(verifyJWT, checkEmailVerified, getProfileByUserId);
 
 export default router;
