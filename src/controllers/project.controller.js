@@ -10,7 +10,7 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "User must be a client!");
     }
 
-    const { title, description, deadline, budget } = req.body;
+    const { title, description, deadline, budget, category } = req.body;
 
     if (title.trim() === "" || description.trim() === "") {
         throw new ApiError(400, "Title and/or Description are required!");
@@ -20,11 +20,16 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Budget is required and must be greater than 0!");
     }
 
+    if (!category) {
+        throw new ApiError(400, "Category is required!");
+    }
+
     const project = await Project.create({
         title,
         description,
         deadline,
         budget,
+        category,
         createdBy: userId,
     });
 
@@ -171,7 +176,7 @@ const updateProject = asyncHandler(async (req, res) => {
         );
     }
 
-    const { title, description, deadline, status, budget } = req.body;
+    const { title, description, deadline, status, budget, category } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -179,6 +184,7 @@ const updateProject = asyncHandler(async (req, res) => {
     if (deadline !== undefined) updateData.deadline = deadline;
     if (status !== undefined) updateData.status = status;
     if (budget !== undefined) updateData.budget = budget;
+    if (category !== undefined) updateData.category = category;
 
     await Project.findByIdAndUpdate(
         projectId,

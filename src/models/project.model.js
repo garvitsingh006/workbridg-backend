@@ -40,6 +40,22 @@ const projectSchema = new Schema(
             required: true,
             min: 0,
         },
+        category: {
+            type: String,
+            required: true,
+            enum: [
+                "Development",
+                "Design",
+                "Writing",
+                "Marketing",
+                "Video & Animation",
+                "Audio & Music",
+                "Business & Consulting",
+                "Data & AI",
+                "Support & Admin",
+                "Other"
+            ],
+        },
         remarks: [
             {
                 by: {

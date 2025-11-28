@@ -24,6 +24,7 @@ export function formatProject(project) {
         status: project.status,
         deadline: project.deadline,
         budget: project.budget,
+        category: project.category,
         remarks: project.remarks.map(remark => ({
             by: remark.by ? {
                 id: remark.by._id.toString(),
