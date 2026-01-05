@@ -36,6 +36,7 @@ const setProfile = asyncHandler(async (req, res) => {
                       "resume",
                       "bio",
                       "pay_per_hour",
+                      "hasSeenProjectsOnboarding",
                   ]
                 : [
                       "companyName",
@@ -46,6 +47,9 @@ const setProfile = asyncHandler(async (req, res) => {
                       "projectTypes",
                       "website",
                       "linkedIn",
+                      "budgetRange",
+                      "preferredCommunication",
+                      "hasSeenProjectsOnboarding",
                   ];
 
         const data = {};

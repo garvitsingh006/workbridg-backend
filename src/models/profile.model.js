@@ -44,6 +44,7 @@ const freelancerSchema = new Schema(
         earnings: { type: Number, default: 0 },
         pay_per_hour: { type: Number, default: 0 },
         isInterviewed: { type: Boolean, default: false },
+        hasSeenProjectsOnboarding: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
@@ -97,6 +98,9 @@ const clientSchema = new Schema(
         },
         website: { type: String, trim: true },
         linkedIn: { type: String, trim: true },
+        budgetRange: { type: String, trim: true },
+        preferredCommunication: { type: String, trim: true },
+        hasSeenProjectsOnboarding: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

@@ -10,7 +10,7 @@ const router = Router();
 router.route("/list").get(verifyJWT, checkEmailVerified, listFreelancerSummaries);
 
 // Private: only logged-in user can update their own profile
-router.route("/me").post(
+router.route("/me").put(
     verifyJWT,
     checkEmailVerified,
     upload.fields([{ name: "resume", maxCount: 1 }]),
