@@ -98,8 +98,6 @@ const clientSchema = new Schema(
         },
         website: { type: String, trim: true },
         linkedIn: { type: String, trim: true },
-        budgetRange: { type: String, trim: true },
-        preferredCommunication: { type: String, trim: true },
         hasSeenProjectsOnboarding: { type: Boolean, default: false },
     },
     { timestamps: true }
