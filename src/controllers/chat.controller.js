@@ -64,6 +64,11 @@ const newMessage = asyncHandler(async (req, res) => {
 
     let isAdmin = req.user.role === "admin";
 
+    // Check if chat is locked and user is not admin
+    if (chat.isLocked && !isAdmin) {
+        throw new ApiError(403, "This chat is locked. Only admin can post messages.");
+    }
+
     // Ensure sender is a participant
     const isParticipant = chat.participants
         .map((p) => p.toString())
@@ -104,7 +109,7 @@ const getAllChats = asyncHandler(async (req, res) => {
     // Fetch all chats where user is a participant
     const chats = await Chat.find({ participants: userId })
         .populate("participants", "username _id") // only fetch username and _id
-        .populate("project", "title _id") // optional, for project chats
+        .populate("project", "title _id hasRequestedAdminManagement adminManagementRequestedAt") // include admin management fields
         .sort({ updatedAt: -1 }); // recent chats first
 
     res.status(200).json(

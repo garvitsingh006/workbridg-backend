@@ -87,6 +87,13 @@ const projectSchema = new Schema(
             type: Schema.Types.ObjectId,
             ref: "Payment",
         },
+        hasRequestedAdminManagement: {
+            type: Boolean,
+            default: false,
+        },
+        adminManagementRequestedAt: {
+            type: Date,
+        },
     },
     { timestamps: true }
 );

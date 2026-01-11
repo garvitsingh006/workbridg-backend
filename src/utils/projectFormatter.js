@@ -38,6 +38,8 @@ export function formatProject(project) {
             text: remark.text,
             createdAt: remark.createdAt
         })),
+        hasRequestedAdminManagement: project.hasRequestedAdminManagement || false,
+        adminManagementRequestedAt: project.adminManagementRequestedAt,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt
     };

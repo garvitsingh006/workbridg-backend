@@ -10,6 +10,7 @@ import {
 //   refundPayment,
   getAllPayments,
   getUserPayments,
+  updatePaymentForAdminManagement,
 } from "../controllers/payment.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -25,5 +26,6 @@ router.post("/release", verifyJWT, releasePayment);
 // router.post("/refund", verifyJWT, refundPayment);
 router.get("/admin/all", verifyJWT, getAllPayments);
 router.get("/user/my-payments", verifyJWT, getUserPayments);
+router.post("/update-admin-management", verifyJWT, updatePaymentForAdminManagement);
 
 export default router;

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
-import { getProject, newProject, updateProject, deleteProject, fetchAllUserProjects, fetchAllProjects, applyToProject, getProjectApplications, getChosenApplications, deleteProjectApplication} from "../controllers/project.controller.js";
+import { getProject, newProject, updateProject, deleteProject, fetchAllUserProjects, fetchAllProjects, applyToProject, getProjectApplications, getChosenApplications, deleteProjectApplication, requestAdminManagement} from "../controllers/project.controller.js";
 
 const router = Router();
 
@@ -21,6 +21,7 @@ router.route("/:projectId/apply").post(verifyJWT, checkEmailVerified, applyToPro
 router.route("/:projectId/applications").get(verifyJWT, checkEmailVerified, getProjectApplications)
 router.route("/:projectId/chosenApplications").get(verifyJWT, checkEmailVerified, getChosenApplications)
 router.route("/:projectId/applications/:userId").delete(verifyJWT, checkEmailVerified, deleteProjectApplication);
+router.route("/:projectId/request-admin-management").post(verifyJWT, checkEmailVerified, requestAdminManagement);
 
 
 export default router;

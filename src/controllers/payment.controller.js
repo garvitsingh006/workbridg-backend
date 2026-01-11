@@ -31,7 +31,7 @@ const createPaymentRecord = asyncHandler(async (req, res) => {
     const {
         projectId,
         totalAmount,
-        clientPlatformFeePercentage = 5,
+        clientPlatformFeePercentage,
     } = req.body;
 
     if (!projectId || !totalAmount) {
@@ -57,8 +57,10 @@ const createPaymentRecord = asyncHandler(async (req, res) => {
         );
     }
 
-    const clientPlatformFee = (totalAmount * clientPlatformFeePercentage) / 100;
-    const freelancerPlatformFee = (totalAmount * 8) / 100;
+    // Determine service charge based on admin management status
+    const serviceChargePercentage = project.hasRequestedAdminManagement ? 5 : 0;
+    const clientPlatformFee = (totalAmount * serviceChargePercentage) / 100;
+    const freelancerPlatformFee = (totalAmount * 10) / 100;
 
     const payment = await Payment.create({
         projectId,
@@ -487,14 +489,75 @@ const getUserPayments = asyncHandler(async (req, res) => {
     const payments = await Payment.find(query)
         .populate("clientId", "username email fullName")
         .populate("freelancerId", "username email fullName")
-        .populate("projectId", "title status")
+        .populate("projectId", "title status hasRequestedAdminManagement")
         .sort({ createdAt: -1 });
+
+    // Update payments for admin-moderated projects
+    const updatedPayments = [];
+    for (const payment of payments) {
+        if (payment.projectId?.hasRequestedAdminManagement && 
+            payment.platformFee.serviceCharge === 0 && 
+            payment.total.status !== "paid") {
+            
+            const newServiceCharge = (payment.totalAmount * 5) / 100;
+            payment.platformFee.serviceCharge = newServiceCharge;
+            payment.total.amount = payment.totalAmount + newServiceCharge;
+            await payment.save();
+        }
+        updatedPayments.push(payment);
+    }
 
     return res
         .status(200)
         .json(
-            new ApiResponse(200, payments, "User payments fetched successfully")
+            new ApiResponse(200, updatedPayments, "User payments fetched successfully")
         );
+});
+
+const updatePaymentForAdminManagement = asyncHandler(async (req, res) => {
+    const { projectId } = req.body;
+
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    const payment = await Payment.findOne({ projectId });
+    if (!payment) {
+        throw new ApiError(404, "Payment record not found for this project");
+    }
+
+    if (payment.total.status === "paid") {
+        throw new ApiError(400, "Cannot update payment that has already been completed");
+    }
+
+    // Calculate new service charge if admin management is requested
+    if (project.hasRequestedAdminManagement) {
+        const newServiceCharge = (payment.totalAmount * 5) / 100;
+        const difference = newServiceCharge - payment.platformFee.serviceCharge;
+        
+        payment.platformFee.serviceCharge = newServiceCharge;
+        payment.total.amount = payment.totalAmount + newServiceCharge;
+        
+        await payment.save();
+        
+        const populatedPayment = await Payment.findById(payment._id)
+            .populate("clientId", "username email fullName")
+            .populate("freelancerId", "username email fullName")
+            .populate("projectId", "title");
+        
+        return res.status(200).json(
+            new ApiResponse(200, populatedPayment, "Payment updated for admin management")
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, payment, "No update needed")
+    );
 });
 
 export {
@@ -508,4 +571,5 @@ export {
     // refundPayment,
     getAllPayments,
     getUserPayments,
+    updatePaymentForAdminManagement,
 };

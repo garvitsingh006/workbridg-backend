@@ -28,6 +28,7 @@ const chatSchema = new Schema(
         project: { type: Schema.Types.ObjectId, ref: "Project" }, // For project/project group
         messages: [messageSchema],
         adminAdded: { type: Boolean, default: false },
+        isLocked: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

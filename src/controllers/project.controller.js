@@ -2,6 +2,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Project } from "../models/project.model.js";
+import { Chat } from "../models/chat.model.js";
+import { User } from "../models/user.model.js";
 import { formatProject } from "../utils/projectFormatter.js";
 
 const newProject = asyncHandler(async (req, res) => {
@@ -396,6 +398,86 @@ const deleteProjectApplication = asyncHandler(async (req, res) => {
     );
 });
 
+const requestAdminManagement = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const userId = req.user._id;
+
+    if (req.user.role.toLowerCase() !== "client") {
+        throw new ApiError(403, "Only clients can request admin management");
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    if (project.createdBy.toString() !== userId.toString()) {
+        throw new ApiError(403, "You can only request admin management for your own projects");
+    }
+
+    if (project.status !== "in-progress") {
+        throw new ApiError(400, "Admin management can only be requested for in-progress projects");
+    }
+
+    if (project.hasRequestedAdminManagement) {
+        throw new ApiError(400, "Admin management has already been requested for this project");
+    }
+
+    // Check if project is within 48 hours of creation
+    const projectAge = Date.now() - new Date(project.createdAt).getTime();
+    const fortyEightHours = 48 * 60 * 60 * 1000;
+    if (projectAge > fortyEightHours) {
+        throw new ApiError(400, "Admin management can only be requested within 48 hours of project start");
+    }
+
+    // Update project
+    project.hasRequestedAdminManagement = true;
+    project.adminManagementRequestedAt = new Date();
+    await project.save();
+
+    // Find project chat
+    const chat = await Chat.findOne({
+        project: projectId,
+        type: "group"
+    });
+
+    if (chat) {
+        // Lock the chat
+        chat.isLocked = true;
+        
+        // Find admin user
+        const admin = await User.findOne({ role: "admin" });
+        if (admin && !chat.participants.includes(admin._id)) {
+            chat.participants.push(admin._id);
+            chat.adminAdded = true;
+        }
+        
+        // Add system message
+        await chat.addSystemMessage(
+            "This project is now under admin management. The chat has been locked and only admin can post messages.",
+            "admin_management_enabled"
+        );
+        
+        await chat.save();
+    }
+
+    const updatedProject = await Project.findById(projectId)
+        .populate({
+            path: "createdBy",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        })
+        .populate({
+            path: "assignedTo",
+            select: "username email fullName role createdAt updatedAt",
+            options: { strictPopulate: false }
+        });
+
+    res.status(200).json(
+        new ApiResponse(200, formatProject(updatedProject), "Admin management requested successfully")
+    );
+});
+
 export {
     newProject,
     getProject,
@@ -407,4 +489,5 @@ export {
     getProjectApplications,
     getChosenApplications,
     deleteProjectApplication,
+    requestAdminManagement,
 };
