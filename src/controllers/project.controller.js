@@ -416,7 +416,7 @@ const requestAdminManagement = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Only clients can request admin management");
     }
 
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId).populate("payment");
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
@@ -438,6 +438,35 @@ const requestAdminManagement = asyncHandler(async (req, res) => {
     const fortyEightHours = 48 * 60 * 60 * 1000;
     if (projectAge > fortyEightHours) {
         throw new ApiError(400, "Admin management can only be requested within 48 hours of project start");
+    }
+
+    // Create admin management fee payment if original payment exists and is paid
+    if (project.payment && project.payment.total.status === "paid") {
+        const { Payment } = await import("../models/payment.model.js");
+        const adminFeeAmount = Math.round((project.budget * 5) / 100);
+        
+        const adminFeePayment = await Payment.create({
+            projectId: project._id,
+            clientId: project.createdBy,
+            totalAmount: adminFeeAmount,
+            currency: "INR",
+            platformFee: {
+                serviceCharge: 0,
+                commissionFee: 0,
+            },
+            total: {
+                amount: adminFeeAmount,
+                currency: "INR",
+                status: "pending",
+                customerName: req.user.fullName,
+                customerEmail: req.user.email,
+            },
+            overallStatus: "pending",
+            isAdminManagementFee: true,
+            description: `Admin Management Fee (5%) - ${project.title}`
+        });
+        
+        console.log("Created admin management fee payment:", adminFeeAmount);
     }
 
     // Update project

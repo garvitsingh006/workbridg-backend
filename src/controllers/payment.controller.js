@@ -117,7 +117,7 @@ const createOrder = asyncHandler(async (req, res) => {
   const orderId = `order_${payment._id}_${Date.now()}`;
 
   const orderRequest = {
-    order_amount: Number(payment.total.amount),
+    order_amount: Number(payment.isAdminManagementFee ? payment.totalAmount : payment.total.amount),
     order_currency: "INR",
     order_id: orderId,
     customer_details: {
@@ -163,7 +163,7 @@ const createOrder = asyncHandler(async (req, res) => {
         {
           orderId: order_id,
           paymentSessionId: payment_session_id,
-          amount: payment.total.amount,
+          amount: payment.isAdminManagementFee ? payment.totalAmount : payment.total.amount,
           currency: "INR",
         },
         "Cashfree order created successfully"
@@ -222,18 +222,20 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
     await payment.save();
 
-    // Notify freelancer about payment completion
-    const paymentWithRefs = await Payment.findById(payment._id)
-      .populate("freelancerId", "_id")
-      .populate("projectId", "title");
-    
-    await createNotification(
-      paymentWithRefs.freelancerId._id,
-      "payment",
-      "Payment Done",
-      `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
-      { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
-    );
+    // Notify freelancer about payment completion (only for regular payments)
+    if (!payment.isAdminManagementFee) {
+      const paymentWithRefs = await Payment.findById(payment._id)
+        .populate("freelancerId", "_id")
+        .populate("projectId", "title");
+      
+      await createNotification(
+        paymentWithRefs.freelancerId._id,
+        "payment",
+        "Payment Done",
+        `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
+        { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
+      );
+    }
 
     const populatedPayment = await Payment.findById(payment._id)
       .populate("clientId", "username email fullName")
@@ -296,18 +298,20 @@ const handleWebhook = asyncHandler(async (req, res) => {
       payment.total.completedAt = new Date(paymentData.payment_time);
       payment.overallStatus = "final_paid";
       
-      // Notify freelancer about payment completion
-      const paymentWithRefs = await Payment.findById(payment._id)
-        .populate("freelancerId", "_id")
-        .populate("projectId", "title");
-      
-      await createNotification(
-        paymentWithRefs.freelancerId._id,
-        "payment",
-        "Payment Done",
-        `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
-        { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
-      );
+      // Notify freelancer about payment completion (only for regular payments)
+      if (!payment.isAdminManagementFee) {
+        const paymentWithRefs = await Payment.findById(payment._id)
+          .populate("freelancerId", "_id")
+          .populate("projectId", "title");
+        
+        await createNotification(
+          paymentWithRefs.freelancerId._id,
+          "payment",
+          "Payment Done",
+          `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
+          { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
+        );
+      }
     } else if (eventType === "PAYMENT_FAILED_WEBHOOK" && paymentData) {
       payment.total.status = "failed";
       payment.total.errorCode = paymentData.error_details?.error_code;

@@ -44,7 +44,7 @@ const projectSchema = new Schema(
             type: String,
             required: true,
             enum: [
-                "Development",
+                "Web Development",
                 "Design",
                 "Writing",
                 "Marketing",

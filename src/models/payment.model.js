@@ -35,7 +35,9 @@ const paymentSchema = new mongoose.Schema({
   freelancerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    required: function() {
+      return !this.isAdminManagementFee;
+    },
   },
 
   totalAmount: { type: Number, required: true },
@@ -68,6 +70,9 @@ const paymentSchema = new mongoose.Schema({
     ],
     default: "pending",
   },
+
+  isAdminManagementFee: { type: Boolean, default: false },
+  description: { type: String },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
