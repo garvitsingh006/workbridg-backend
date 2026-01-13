@@ -5,6 +5,7 @@ import { Project } from "../models/project.model.js";
 import { Chat } from "../models/chat.model.js";
 import { User } from "../models/user.model.js";
 import { formatProject } from "../utils/projectFormatter.js";
+import { createNotification } from "./notification.controller.js";
 
 const newProject = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -297,6 +298,15 @@ const applyToProject = asyncHandler(async (req, res) => {
     });
 
     await project.save();
+
+    // Notify the client about the new application
+    await createNotification(
+        project.createdBy,
+        "application",
+        "New Application Received",
+        `${req.user.fullName || req.user.username} has applied to your project "${project.title}"`,
+        { projectId: project._id }
+    );
 
     res.status(200).json(
         new ApiResponse(200, null, "Application submitted successfully")

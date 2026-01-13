@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Payment } from "../models/payment.model.js";
 import { Project } from "../models/project.model.js";
+import { createNotification } from "./notification.controller.js";
 
 const CASHFREE_BASE_URL = process.env.CASHFREE_ENVIRONMENT === 'PRODUCTION' 
     ? 'https://api.cashfree.com/pg' 
@@ -221,6 +222,19 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
     await payment.save();
 
+    // Notify freelancer about payment completion
+    const paymentWithRefs = await Payment.findById(payment._id)
+      .populate("freelancerId", "_id")
+      .populate("projectId", "title");
+    
+    await createNotification(
+      paymentWithRefs.freelancerId._id,
+      "payment",
+      "Payment Done",
+      `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
+      { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
+    );
+
     const populatedPayment = await Payment.findById(payment._id)
       .populate("clientId", "username email fullName")
       .populate("freelancerId", "username email fullName")
@@ -281,6 +295,19 @@ const handleWebhook = asyncHandler(async (req, res) => {
       payment.total.paymentMethod = paymentData.payment_group;
       payment.total.completedAt = new Date(paymentData.payment_time);
       payment.overallStatus = "final_paid";
+      
+      // Notify freelancer about payment completion
+      const paymentWithRefs = await Payment.findById(payment._id)
+        .populate("freelancerId", "_id")
+        .populate("projectId", "title");
+      
+      await createNotification(
+        paymentWithRefs.freelancerId._id,
+        "payment",
+        "Payment Done",
+        `Payment for "${paymentWithRefs.projectId.title}" has been completed`,
+        { paymentId: payment._id, projectId: paymentWithRefs.projectId._id }
+      );
     } else if (eventType === "PAYMENT_FAILED_WEBHOOK" && paymentData) {
       payment.total.status = "failed";
       payment.total.errorCode = paymentData.error_details?.error_code;

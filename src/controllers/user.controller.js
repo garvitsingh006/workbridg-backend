@@ -8,6 +8,7 @@ import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
+import { createNotification } from "./notification.controller.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -108,12 +109,18 @@ const setRole = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
     const { username, fullName, email, password } = req.body;
 
-    if ([username, fullName, email, password].some((f) => f?.trim() === "")) {
+    const normalizedUsername = username.toLowerCase();
+
+    if (normalizedUsername.length < 5) {
+        throw new ApiError(400, "Username must be at least 5 characters");
+    }
+
+    if ([normalizedUsername, fullName, email, password].some((f) => f?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
 
     const existingUser = await User.findOne({
-        $or: [{ email }, { username }],
+        $or: [{ email }, { username: normalizedUsername }],
     });
 
     if (existingUser) {
@@ -176,7 +183,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.create({
-        username: username.toLowerCase(),
+        username: normalizedUsername,
         fullName,
         email,
         password,
@@ -294,6 +301,12 @@ const loginUser = asyncHandler(async (req, res) => {
         );
 });
 
+const usernameAvailability = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    const exists = await User.exists({ username: username.toLowerCase() });
+    res.json({ available: !exists});
+});
+
 const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
@@ -396,6 +409,35 @@ const getClients = asyncHandler(async (req, res) => {
         );
 });
 
+const changeUsername = asyncHandler(async (req, res) => {
+    const { username } = req.body;
+    if (!username) {
+        throw new ApiError(400, "Username is required");
+    }
+
+    const normalizedUsername = username.toLowerCase();
+    if (normalizedUsername.length < 5) {
+        throw new ApiError(400, "Username must be at least 5 characters");
+    }
+
+
+    if (await User.exists({ username: normalizedUsername, _id: { $ne: req.user._id } })) {
+        throw new ApiError(409, "Username already taken");
+    }
+
+    await User.findByIdAndUpdate(req.user._id, {
+        username: username.toLowerCase(),
+    });
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            username,
+            "Username Updated Successfully!"
+        )
+    );
+})
+
 const userApplicationChosenByClient = asyncHandler(async (req, res) => {
     // Client will do this
     const { projectId, userId } = req.params;
@@ -416,6 +458,16 @@ const userApplicationChosenByClient = asyncHandler(async (req, res) => {
 
     // Update the flag
     application.isChosenByClient = true;
+    application.updatedAt = new Date();
+
+    // Notify freelancer
+    await createNotification(
+        userId,
+        "application",
+        "Application Selected!",
+        `Your application for "${project.title}" has been chosen by the client`,
+        { projectId, applicationId: projectId }
+    );
 
     // Remove all other applications except the chosen one
     // project.applications = project.applications.filter(
@@ -466,6 +518,38 @@ const approveProjectForUser = asyncHandler(async (req, res) => {
     console.log(
         "Status of the project is after changing it to in-progress",
         project.status
+    );
+
+    // Create group chat for the project
+    const { Chat } = await import("../models/chat.model.js");
+    const participantIds = [project.createdBy, userId, req.user._id];
+    const chat = await Chat.create({
+        type: "group",
+        project: projectId,
+        name: `Project: ${project.title}`,
+        participants: participantIds,
+        createdBy: req.user._id
+    });
+    await chat.addSystemMessage(
+        "Project approved. Group chat created for collaboration.",
+        "project_approved"
+    );
+
+    // Notify both client and freelancer about admin approval with chat link
+    await createNotification(
+        project.createdBy,
+        "message",
+        "Project Approved",
+        `Project "${project.title}" has been approved and is now in progress`,
+        { projectId, chatId: chat._id }
+    );
+    
+    await createNotification(
+        userId,
+        "message",
+        "Project Approved",
+        `You have been approved for project "${project.title}"`,
+        { projectId, chatId: chat._id }
     );
 
     if (!user.approvedProjects.includes(projectId)) {
@@ -688,9 +772,62 @@ const deleteAccount = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Account deleted successfully"));
 });
 
+const getFreelancerApplications = asyncHandler(async (req, res) => {
+    const freelancerId = req.user._id;
+    
+    // Find all projects where this freelancer has applied
+    const projects = await Project.find({
+        "applications.applicant": freelancerId
+    })
+    .populate("createdBy", "fullName username")
+    .populate("payment", "amount")
+    .select("title description budget category status applications createdAt updatedAt payment")
+    .sort({ updatedAt: -1 }); // Sort projects by updatedAt first
+    
+    const applications = projects.map(project => {
+        const application = project.applications.find(app => 
+            app.applicant.toString() === freelancerId.toString()
+        );
+        
+        let status = "pending";
+        let finalExpectedPayment = application.expectedPayment;
+        
+        if (application.isChosenByClient) {
+            if (project.status === "in-progress" || project.status === "completed") {
+                status = "approved";
+                // Use actual payment amount if available
+                if (project.payment && project.payment.amount) {
+                    finalExpectedPayment = project.payment.amount.toString();
+                }
+            } else {
+                status = "selected";
+            }
+        }
+        
+        return {
+            _id: project._id,
+            title: project.title,
+            description: project.description,
+            budget: project.budget,
+            category: project.category,
+            client: project.createdBy,
+            appliedAt: application.appliedAt,
+            projectUpdatedAt: project.updatedAt,
+            status,
+            expectedPayment: finalExpectedPayment,
+            proposalSummary: application.proposalSummary
+        };
+    });
+    
+    res.status(200).json(
+        new ApiResponse(200, applications, "Freelancer applications fetched successfully")
+    );
+});
+
 export {
     registerUser,
     loginUser,
+    usernameAvailability,
     verifyUser,
     logoutUser,
     meUser,
@@ -698,6 +835,7 @@ export {
     getUserById,
     refreshAccessToken,
     setRole,
+    changeUsername,
     approveProjectForUser,
     rejectProjectForUser,
     getApprovedProjects,
@@ -710,6 +848,7 @@ export {
     forgotPassword,
     resetPassword,
     deleteAccount,
+    getFreelancerApplications,
 };
 
 // Google OAuth controllers
@@ -743,9 +882,14 @@ export const googleSignup = asyncHandler(async (req, res) => {
 
     // Create a username from email local-part if not provided
     const suggestedUsername = (email.split("@")[0] || "user").toLowerCase();
+    let base = suggestedUsername;
+    let username;
+    do {
+        username = `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
+    } while (await User.exists({ username }));
 
     const newUser = await User.create({
-        username: suggestedUsername,
+        username: username,
         fullName: fullName || suggestedUsername,
         email,
         password: jwt.sign({ email }, process.env.JWT_SECRET || "fallback", {

@@ -81,6 +81,7 @@ const projectSchema = new Schema(
                 addOns: String,
                 appliedAt: Date,
                 isChosenByClient: { type: Boolean, default: false },
+                updatedAt: { type: Date, default: Date.now },
             },
         ],
         payment: {

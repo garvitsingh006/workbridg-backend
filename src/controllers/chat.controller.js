@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Chat } from "../models/chat.model.js";
 import { Project } from "../models/project.model.js";
 import { User } from "../models/user.model.js";
+import { createNotification } from "./notification.controller.js";
 
 const newChat = asyncHandler(async (req, res) => {
     const userId = req.user._id;
@@ -85,6 +86,35 @@ const newMessage = asyncHandler(async (req, res) => {
         timestamp: new Date(),
         read: false,
     });
+
+    // Create notifications for other participants
+    const otherParticipants = chat.participants.filter(p => p.toString() !== userId.toString());
+    const lastMessage = updatedChat.messages[updatedChat.messages.length - 1];
+    
+    // Get chat details for notification
+    const chatWithDetails = await Chat.findById(chatId)
+        .populate("participants", "username")
+        .populate("project", "title");
+    
+    let notificationTitle = "";
+    if (chatWithDetails.type === "group" || chatWithDetails.type === "project") {
+        const groupName = chatWithDetails.name || chatWithDetails.project?.title || "Group Chat";
+        notificationTitle = groupName;
+    } else {
+        notificationTitle = `New message from ${username}`;
+    }
+    
+    for (const participantId of otherParticipants) {
+        await createNotification(
+            participantId,
+            "message",
+            notificationTitle,
+            chatWithDetails.type === "group" || chatWithDetails.type === "project" 
+                ? `${username}: ${content}` 
+                : content,
+            { chatId: chat._id, messageId: lastMessage._id }
+        );
+    }
 
     const io = req.app.get("io");
     if (io) {

@@ -12,8 +12,6 @@ const setProfile = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const role = req.user.role;
 
-        console.log("User ID:", userId, "Role:", role);
-
         // decide which model to use
         const ProfileModel =
             role === "freelancer" ? FreelancerProfile : ClientProfile;
