@@ -10,22 +10,15 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN || "https://workbridg-test.vercel.app",
     credentials: true
 }))
-app.use(express.json("limit: 10mb"));
+app.use(express.json({limit: "10mb"}));
 app.use(cookieParser());
 app.use(express.static("public"));
 app.use(express.urlencoded({extended: true, limit: "10mb"}));
-app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-        success: false,
-        message: err.message || "Internal Server Error",
-    });
-});
 
 app.use(express.json({
-  verify: (req, res, buf) => {
+    verify: (req, res, buf) => {
     req.rawBody = buf.toString();
-  }
+}
 }));
 
 // import { Project } from "./models/project.model.js";
@@ -34,16 +27,16 @@ app.use(express.json({
 // import { Notification } from "./models/notification.model.js";
 
 // const deleteAll = async () => {
-//   try {
-//     const result = await Project.deleteMany({});
-//     const result2 = await Payment.deleteMany({});
-//     const result3 = await Chat.deleteMany({});
-//     const result4 = await Notification.deleteMany({});
-//     console.log(`Deleted ${result.deletedCount} projects.`);
-//     console.log(`Deleted ${result2.deletedCount} payments.`);
-//     console.log(`Deleted ${result3.deletedCount} chats.`);
-//     console.log(`Deleted ${result4.deletedCount} notifications.`);
-//   } catch (err) {
+    //   try {
+        //     const result = await Project.deleteMany({});
+        //     const result2 = await Payment.deleteMany({});
+        //     const result3 = await Chat.deleteMany({});
+        //     const result4 = await Notification.deleteMany({});
+        //     console.log(`Deleted ${result.deletedCount} projects.`);
+        //     console.log(`Deleted ${result2.deletedCount} payments.`);
+        //     console.log(`Deleted ${result3.deletedCount} chats.`);
+        //     console.log(`Deleted ${result4.deletedCount} notifications.`);
+        //   } catch (err) {
 //     console.error(err);
 //   }
 // };
@@ -62,6 +55,7 @@ import uploadRouter from "./routes/upload.route.js"
 import helpRouter from "./routes/help.route.js"
 import notificationRouter from "./routes/notification.route.js"
 import upiRouter from "./routes/upi.route.js"
+import healthRouter from "./routes/health.route.js"
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/profiles", profileRouter)
 app.use("/api/v1/projects", projectRouter)
@@ -72,5 +66,13 @@ app.use("/api/v1/upload", uploadRouter)
 app.use("/api/v1/help", helpRouter)
 app.use("/api/v1/notifications", notificationRouter)
 app.use("/api/v1/upi", upiRouter)
+app.use("/health", healthRouter)
 
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+    });
+});
 export {app};
