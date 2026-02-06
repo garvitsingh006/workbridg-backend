@@ -31,21 +31,24 @@ app.use(express.json({
 // import { Project } from "./models/project.model.js";
 // import { Payment } from "./models/payment.model.js";
 // import { Chat } from "./models/chat.model.js";
+// import { Notification } from "./models/notification.model.js";
 
-// const deleteAllProjects = async () => {
+// const deleteAll = async () => {
 //   try {
 //     const result = await Project.deleteMany({});
 //     const result2 = await Payment.deleteMany({});
-//         const result3 = await Chat.deleteMany({});
+//     const result3 = await Chat.deleteMany({});
+//     const result4 = await Notification.deleteMany({});
 //     console.log(`Deleted ${result.deletedCount} projects.`);
 //     console.log(`Deleted ${result2.deletedCount} payments.`);
 //     console.log(`Deleted ${result3.deletedCount} chats.`);
+//     console.log(`Deleted ${result4.deletedCount} notifications.`);
 //   } catch (err) {
 //     console.error(err);
 //   }
 // };
 
-// deleteAllProjects();
+// deleteAll();
 
 
 // import routes
@@ -58,6 +61,7 @@ import paymentRouter from "./routes/payment.route.js"
 import uploadRouter from "./routes/upload.route.js"
 import helpRouter from "./routes/help.route.js"
 import notificationRouter from "./routes/notification.route.js"
+import upiRouter from "./routes/upi.route.js"
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/profiles", profileRouter)
 app.use("/api/v1/projects", projectRouter)
@@ -67,5 +71,6 @@ app.use("/api/v1/payments", paymentRouter)
 app.use("/api/v1/upload", uploadRouter)
 app.use("/api/v1/help", helpRouter)
 app.use("/api/v1/notifications", notificationRouter)
+app.use("/api/v1/upi", upiRouter)
 
 export {app};

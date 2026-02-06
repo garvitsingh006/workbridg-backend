@@ -29,6 +29,11 @@ const chatSchema = new Schema(
         messages: [messageSchema],
         adminAdded: { type: Boolean, default: false },
         isLocked: { type: Boolean, default: false },
+        status: {
+            type: String,
+            enum: ["discussion", "committed", "closed"],
+            default: "discussion"
+        },
     },
     { timestamps: true }
 );

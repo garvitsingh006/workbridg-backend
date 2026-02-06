@@ -13,7 +13,7 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "User must be a client!");
     }
 
-    const { title, description, deadline, budget, category } = req.body;
+    const { title, description, deadline, budget, category, paymentMethod } = req.body;
 
     if (title.trim() === "" || description.trim() === "") {
         throw new ApiError(400, "Title and/or Description are required!");
@@ -27,12 +27,17 @@ const newProject = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Category is required!");
     }
 
+    if (!paymentMethod) {
+        throw new ApiError(400, "Payment method is required!");
+    }
+
     const project = await Project.create({
         title,
         description,
         deadline,
         budget,
         category,
+        paymentMethod,
         createdBy: userId,
     });
 
@@ -125,8 +130,11 @@ const fetchAllProjects = asyncHandler(async (req, res) => {
         );
     }
 
+    // For freelancers, only show unassigned projects
+    const query = req.user.role === "freelancer" ? { status: "unassigned" } : {};
+
     // Fetch and populate just like your single/fetch endpoints
-    const projects = await Project.find({})
+    const projects = await Project.find(query)
         .populate({
             path: "createdBy",
             select: "username email fullName role createdAt updatedAt",
@@ -179,7 +187,7 @@ const updateProject = asyncHandler(async (req, res) => {
         );
     }
 
-    const { title, description, deadline, status, budget, category } = req.body;
+    const { title, description, deadline, status, budget, category, paymentMethod } = req.body;
 
     const updateData = {};
     if (title !== undefined) updateData.title = title;
@@ -188,6 +196,7 @@ const updateProject = asyncHandler(async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (budget !== undefined) updateData.budget = budget;
     if (category !== undefined) updateData.category = category;
+    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
 
     await Project.findByIdAndUpdate(
         projectId,
@@ -264,52 +273,83 @@ const applyToProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Only freelancers can apply to projects");
     }
     const { projectId } = req.params;
-    const { proposalSummary, estimatedDelivery, addOns } = req.body;
-    if (!proposalSummary || !estimatedDelivery) {
-        throw new ApiError(400, "Proposal summary and estimated delivery are required");
-    }
+    // const { proposalSummary, estimatedDelivery, addOns } = req.body;
+    // if (!proposalSummary || !estimatedDelivery) {
+    //     throw new ApiError(400, "Proposal summary and estimated delivery are required");
+    // }
 
     const project = await Project.findById(projectId);
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
 
-    console.log(project);
+    // Check if chat already exists between freelancer and client for this project
+    const existingChat = await Chat.findOne({
+        type: "group",
+        project: projectId,
+        participants: { $all: [req.user._id, project.createdBy] }
+    });
 
-    // Assuming project.applications is an array in the project model
-    project.applications = project.applications || [];
-
-    // Check if user already applied
-    const alreadyApplied = project.applications.some(
-        (app) => app.applicant.toString() === req.user._id.toString()
-    );
-    console.log(alreadyApplied);
-    if (alreadyApplied) {
+    if (existingChat) {
         throw new ApiError(400, "You have already applied to this project");
     }
 
-    project.applications.push({
-        applicant: req.user._id,
-        username: req.user.username,
-        proposalSummary,
-        estimatedDelivery,
-        addOns: addOns || '',
-        appliedAt: new Date(),
+    // Create group chat between freelancer and client
+    const chat = await Chat.create({
+        type: "group",
+        participants: [req.user._id, project.createdBy],
+        project: projectId,
+        status: "discussion",
+        createdBy: req.user._id
     });
 
-    await project.save();
+    // Add initial system message
+    await chat.addSystemMessage(
+        `${req.user.fullName || req.user.username} has started a discussion for project "${project.title}". Status: Discussion`,
+        "discussion_started"
+    );
 
-    // Notify the client about the new application
+    // Notify the client about the new discussion
     await createNotification(
         project.createdBy,
         "application",
-        "New Application Received",
-        `${req.user.fullName || req.user.username} has applied to your project "${project.title}"`,
-        { projectId: project._id }
+        "New Discussion Started",
+        `${req.user.fullName || req.user.username} has started a discussion on your project "${project.title}"`,
+        { projectId: project._id, chatId: chat._id }
     );
 
+    // COMMENTED OUT: Old application logic
+    // console.log(project);
+    // // Assuming project.applications is an array in the project model
+    // project.applications = project.applications || [];
+    // // Check if user already applied
+    // const alreadyApplied = project.applications.some(
+    //     (app) => app.applicant.toString() === req.user._id.toString()
+    // );
+    // console.log(alreadyApplied);
+    // if (alreadyApplied) {
+    //     throw new ApiError(400, "You have already applied to this project");
+    // }
+    // project.applications.push({
+    //     applicant: req.user._id,
+    //     username: req.user.username,
+    //     proposalSummary,
+    //     estimatedDelivery,
+    //     addOns: addOns || '',
+    //     appliedAt: new Date(),
+    // });
+    // await project.save();
+    // // Notify the client about the new application
+    // await createNotification(
+    //     project.createdBy,
+    //     "application",
+    //     "New Application Received",
+    //     `${req.user.fullName || req.user.username} has applied to your project "${project.title}"`,
+    //     { projectId: project._id }
+    // );
+
     res.status(200).json(
-        new ApiResponse(200, null, "Application submitted successfully")
+        new ApiResponse(200, { chatId: chat._id }, "Discussion started successfully")
     );
 });
 const getProjectApplications = asyncHandler(async (req, res) => {
@@ -440,34 +480,38 @@ const requestAdminManagement = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Admin management can only be requested within 48 hours of project start");
     }
 
-    // Create admin management fee payment if original payment exists and is paid
-    if (project.payment && project.payment.total.status === "paid") {
-        const { Payment } = await import("../models/payment.model.js");
-        const adminFeeAmount = Math.round((project.budget * 5) / 100);
-        
-        const adminFeePayment = await Payment.create({
-            projectId: project._id,
-            clientId: project.createdBy,
-            totalAmount: adminFeeAmount,
+    // Create admin management fee payment as UPI payment
+    const { Payment } = await import("../models/payment.model.js");
+    const adminFeeAmount = Math.round((project.finalBudget || project.budget) * 5 / 100);
+    
+    // Generate unique moderation ID
+    const moderationId = `MOD-${Math.floor(Math.random() * 90000) + 10000}`;
+    
+    const adminFeePayment = await Payment.create({
+        projectId: project._id,
+        clientId: project.createdBy,
+        totalAmount: adminFeeAmount,
+        currency: "INR",
+        platformFee: {
+            serviceCharge: 0,
+            commissionFee: 0,
+        },
+        total: {
+            amount: adminFeeAmount,
             currency: "INR",
-            platformFee: {
-                serviceCharge: 0,
-                commissionFee: 0,
-            },
-            total: {
-                amount: adminFeeAmount,
-                currency: "INR",
-                status: "pending",
-                customerName: req.user.fullName,
-                customerEmail: req.user.email,
-            },
-            overallStatus: "pending",
-            isAdminManagementFee: true,
-            description: `Admin Management Fee (5%) - ${project.title}`
-        });
-        
-        console.log("Created admin management fee payment:", adminFeeAmount);
-    }
+            status: "pending",
+            customerName: req.user.fullName,
+            customerEmail: req.user.email,
+            paymentType: "upi",
+            upiId: process.env.UPI_ID
+        },
+        overallStatus: "pending",
+        isAdminManagementFee: true,
+        moderationId: moderationId,
+        description: moderationId
+    });
+    
+    console.log("Created UPI admin management fee payment:", adminFeeAmount);
 
     // Update project
     project.hasRequestedAdminManagement = true;
@@ -517,6 +561,88 @@ const requestAdminManagement = asyncHandler(async (req, res) => {
     );
 });
 
+const proceedWithFreelancer = asyncHandler(async (req, res) => {
+    const { chatId } = req.params;
+    const userId = req.user._id;
+    const { finalBudget } = req.body;
+
+    if (req.user.role.toLowerCase() !== "client") {
+        throw new ApiError(403, "Only clients can proceed with freelancers");
+    }
+
+    if (!finalBudget || finalBudget <= 0) {
+        throw new ApiError(400, "Final budget is required and must be greater than 0");
+    }
+
+    const chat = await Chat.findById(chatId).populate('project');
+    if (!chat) {
+        throw new ApiError(404, "Chat not found");
+    }
+
+    if (!chat.project) {
+        throw new ApiError(400, "This is not a project chat");
+    }
+
+    // Verify client owns the project
+    if (chat.project.createdBy.toString() !== userId.toString()) {
+        throw new ApiError(403, "You can only proceed with freelancers for your own projects");
+    }
+
+    if (chat.status === "committed") {
+        throw new ApiError(400, "This freelancer has already been committed to");
+    }
+
+    // Update current chat to committed
+    chat.status = "committed";
+    // Ensure committed chats are not locked unless admin management is requested
+    if (!chat.project.hasRequestedAdminManagement) {
+        chat.isLocked = false;
+    }
+    await chat.save();
+
+    // Update project status to in-progress and final budget
+    await Project.findByIdAndUpdate(chat.project._id, { 
+        status: "in-progress",
+        finalBudget: finalBudget
+    });
+
+    // Close all other chats for this project
+    await Chat.updateMany(
+        {
+            project: chat.project._id,
+            _id: { $ne: chatId },
+            status: { $ne: "closed" }
+        },
+        {
+            status: "closed"
+            // Don't lock closed chats - only admin-managed chats should be locked
+        }
+    );
+
+    // Add system messages
+    await chat.addSystemMessage(
+        `Client has proceeded with this freelancer. Final budget: $${finalBudget}. Chat status: Committed`,
+        "freelancer_committed"
+    );
+
+    // Add system messages to closed chats
+    const otherChats = await Chat.find({
+        project: chat.project._id,
+        _id: { $ne: chatId }
+    });
+
+    for (const otherChat of otherChats) {
+        await otherChat.addSystemMessage(
+            "Client has proceeded with another freelancer. This discussion has been closed.",
+            "discussion_closed"
+        );
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, { chatId: chat._id, status: chat.status, finalBudget }, "Proceeded with freelancer successfully")
+    );
+});
+
 export {
     newProject,
     getProject,
@@ -529,4 +655,5 @@ export {
     getChosenApplications,
     deleteProjectApplication,
     requestAdminManagement,
+    proceedWithFreelancer,
 };

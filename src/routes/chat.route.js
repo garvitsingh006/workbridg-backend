@@ -11,6 +11,7 @@ import {
     getParticipants,
     removeParticipant,
 } from "../controllers/chat.controller.js";
+import { proceedWithFreelancer } from "../controllers/project.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
 
@@ -29,6 +30,7 @@ router.route("/:chatId/participants")
 router.route("/:chatId/read").patch(verifyJWT, checkEmailVerified, markMessagesAsRead);
 router.route("/:chatId/add-admin").patch(verifyJWT, checkEmailVerified, addAdminToChat);
 router.route("/:chatId/approve").patch(verifyJWT, checkEmailVerified, approveChat);
+router.route("/:chatId/proceed-freelancer").patch(verifyJWT, checkEmailVerified, proceedWithFreelancer);
 router.route("/:chatId/participants/:userId").delete(verifyJWT, checkEmailVerified, removeParticipant);
 
 export default router;

@@ -8,13 +8,19 @@ const paymentStageSchema = new mongoose.Schema({
   currency: { type: String, default: "INR" },
   status: {
     type: String,
-    enum: ["pending", "created", "paid", "failed"],
+    enum: ["pending", "created", "paid", "received", "failed"],
     default: "pending",
   },
   customerName: { type: String },
   customerEmail: { type: String },
   customerPhone: { type: String },
   paymentMethod: { type: String },
+  paymentType: {
+    type: String,
+    enum: ["cashfree", "upi"],
+    default: "cashfree"
+  },
+  upiId: { type: String },
   errorCode: { type: String },
   errorMessage: { type: String },
   createdAt: { type: Date, default: Date.now },
@@ -72,6 +78,7 @@ const paymentSchema = new mongoose.Schema({
   },
 
   isAdminManagementFee: { type: Boolean, default: false },
+  moderationId: { type: String, unique: true, sparse: true },
   description: { type: String },
 
   createdAt: { type: Date, default: Date.now },

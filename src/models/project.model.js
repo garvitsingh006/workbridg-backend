@@ -40,6 +40,10 @@ const projectSchema = new Schema(
             required: true,
             min: 0,
         },
+        finalBudget: {
+            type: Number,
+            min: 0,
+        },
         category: {
             type: String,
             required: true,
@@ -55,6 +59,11 @@ const projectSchema = new Schema(
                 "Support & Admin",
                 "Other"
             ],
+        },
+        paymentMethod: {
+            type: String,
+            required: true,
+            enum: ["milestone", "upfront", "hourly"],
         },
         remarks: [
             {

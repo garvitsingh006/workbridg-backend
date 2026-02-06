@@ -65,9 +65,13 @@ const newMessage = asyncHandler(async (req, res) => {
 
     let isAdmin = req.user.role === "admin";
 
-    // Check if chat is locked and user is not admin
+    // Check if chat is locked due to admin moderation and user is not admin
     if (chat.isLocked && !isAdmin) {
-        throw new ApiError(403, "This chat is locked. Only admin can post messages.");
+        // Only block if admin management is actually requested
+        const project = await Project.findById(chat.project);
+        if (project && project.hasRequestedAdminManagement) {
+            throw new ApiError(403, "This chat is under admin moderation. Only admin can post messages.");
+        }
     }
 
     // Ensure sender is a participant
