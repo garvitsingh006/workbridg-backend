@@ -71,6 +71,10 @@ const userSchema = new Schema(
             type: String,
             default: null,
         },
+        hasAcceptedTerms: {
+            type: Boolean,
+            default: false,
+        },
     },
     { timestamps: true }
 );

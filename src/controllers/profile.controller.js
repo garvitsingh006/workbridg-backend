@@ -120,6 +120,11 @@ const setProfile = asyncHandler(async (req, res) => {
         allowedFields.forEach((f) => {
             if (req.body[f] !== undefined) data[f] = req.body[f];
         });
+        
+        // Handle hasAcceptedTerms separately - update User model
+        if (req.body.hasAcceptedTerms !== undefined) {
+            await User.findByIdAndUpdate(userId, { hasAcceptedTerms: req.body.hasAcceptedTerms });
+        }
         console.log(req.body);
         console.log(data);
         // create or update
@@ -135,7 +140,7 @@ const setProfile = asyncHandler(async (req, res) => {
             console.log(profile.toObject())
         } catch (error) {
             console.error("Profile save failed:", error, error.stack);
-            return res.status(501).json({
+            return res.status(500).json({
                 message: "Inside catch block this is",
                 error: error.message,
                 stack: error.stack,
@@ -151,7 +156,7 @@ const setProfile = asyncHandler(async (req, res) => {
             );
     } catch (error) {
         console.error("Profile update error:", error);
-        return res.status(501).json({
+        return res.status(500).json({
             message: "Outside catch block this is",
             error: error.message,
         });
