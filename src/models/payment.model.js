@@ -21,6 +21,8 @@ const paymentStageSchema = new mongoose.Schema({
     default: "cashfree"
   },
   upiId: { type: String },
+  claimedPaid: { type: Boolean, default: false },
+  claimedPaidAt: { type: Date },
   errorCode: { type: String },
   errorMessage: { type: String },
   createdAt: { type: Date, default: Date.now },

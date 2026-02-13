@@ -625,6 +625,18 @@ const proceedWithFreelancer = asyncHandler(async (req, res) => {
         "freelancer_committed"
     );
 
+    // Notify the freelancer
+    const freelancerId = chat.participants.find(p => p.toString() !== userId.toString());
+    if (freelancerId) {
+        await createNotification(
+            freelancerId,
+            "project",
+            "You've Been Selected!",
+            `Congratulations! The client has chosen you for the project "${chat.project.title}" with a final budget of $${finalBudget}`,
+            { projectId: chat.project._id, chatId: chat._id }
+        );
+    }
+
     // Add system messages to closed chats
     const otherChats = await Chat.find({
         project: chat.project._id,

@@ -135,6 +135,17 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const verificationLink = `${process.env.BACKEND_URL}/api/v1/users/verify?token=${verificationToken}`;
 
+    
+    const user = await User.create({
+        username: normalizedUsername,
+        fullName,
+        email,
+        password,
+        verificationToken,
+        verificationTokenExpiry: tokenExpiry,
+        isVerified: false,
+    });
+    
     // SEND EMAIL USING RESEND (NO TRANSPORTER)
     try {
         const { error } = await resend.emails.send({
@@ -181,17 +192,7 @@ const registerUser = asyncHandler(async (req, res) => {
             success: false,
         });
     }
-
-    const user = await User.create({
-        username: normalizedUsername,
-        fullName,
-        email,
-        password,
-        verificationToken,
-        verificationTokenExpiry: tokenExpiry,
-        isVerified: false,
-    });
-
+    
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
         user._id
     );

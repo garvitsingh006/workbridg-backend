@@ -143,7 +143,10 @@ const getAllChats = asyncHandler(async (req, res) => {
     // Fetch all chats where user is a participant
     const chats = await Chat.find({ participants: userId })
         .populate("participants", "username _id") // only fetch username and _id
-        .populate("project", "title _id hasRequestedAdminManagement adminManagementRequestedAt") // include admin management fields
+        .populate({
+            path: "project",
+            select: "title _id hasRequestedAdminManagement adminManagementRequestedAt createdBy assignedTo"
+        }) // include admin management fields and populate project properly
         .sort({ updatedAt: -1 }); // recent chats first
 
     res.status(200).json(

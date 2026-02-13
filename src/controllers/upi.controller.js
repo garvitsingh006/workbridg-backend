@@ -17,13 +17,12 @@ const markPaymentAsPaid = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Only the client can mark payment as paid");
     }
 
-    if (payment.total.status !== "pending") {
+    if (payment.total.status !== "pending" && payment.total.status !== "created") {
         throw new ApiError(400, "Payment is not in pending status");
     }
 
-    payment.total.status = "paid";
-    payment.total.completedAt = new Date();
-    payment.overallStatus = "advance_paid";
+    payment.total.claimedPaid = true;
+    payment.total.claimedPaidAt = new Date();
     await payment.save();
 
     res.status(200).json(
@@ -52,12 +51,14 @@ const markPaymentAsReceived = asyncHandler(async (req, res) => {
         }
     }
 
-    if (payment.total.status !== "paid") {
-        throw new ApiError(400, "Payment must be paid before it can be marked as received");
+    if (payment.total.status !== "paid" && !payment.total.claimedPaid) {
+        throw new ApiError(400, "Payment must be paid or claimed paid before it can be marked as received");
     }
 
-    payment.total.status = "received";
-    payment.overallStatus = "final_paid";
+    payment.total.status = "paid";
+    payment.total.completedAt = new Date();
+    payment.total.claimedPaid = false;
+    payment.overallStatus = payment.isAdminManagementFee ? "final_paid" : "advance_paid";
     await payment.save();
 
     res.status(200).json(

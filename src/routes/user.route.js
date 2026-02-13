@@ -20,6 +20,8 @@ const router = Router()
 router.route("/register").post(registerUser)
 router.route("/login").post(loginUser)
 router.route("/username-available/:username").get(usernameAvailability)
+// verify user using email
+router.route("/verify").get(verifyUser)
 
 // secure routes
 router.route("/logout").post(verifyJWT, logoutUser)
@@ -59,9 +61,6 @@ router.route('/auth/google/login').post(googleLogin)
 
 // freelancer routes
 router.route('/freelancer/applications').get(verifyJWT, checkEmailVerified, getFreelancerApplications)
-
-// verify user using email
-router.route("/verify").get(verifyUser)
 
 // password reset routes
 router.route("/forgot-password").post(forgotPassword)
