@@ -825,6 +825,30 @@ const getFreelancerApplications = asyncHandler(async (req, res) => {
     );
 });
 
+const getWeeklyApplicationStats = asyncHandler(async (req, res) => {
+    if (req.user.role !== "freelancer") {
+        throw new ApiError(403, "Only freelancers can view application stats");
+    }
+
+    const user = await User.findById(req.user._id);
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    let count = user.weeklyApplicationCount || 0;
+    if (!user.weeklyApplicationResetDate || user.weeklyApplicationResetDate < oneWeekAgo) {
+        count = 0;
+    }
+
+    const limit = user.isPremium ? 50 : 5;
+    const resetDate = user.weeklyApplicationResetDate && user.weeklyApplicationResetDate > oneWeekAgo
+        ? new Date(user.weeklyApplicationResetDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    return res.status(200).json(
+        new ApiResponse(200, { used: count, limit, remaining: limit - count, resetDate }, "Weekly stats fetched")
+    );
+});
+
 export {
     registerUser,
     loginUser,
@@ -850,6 +874,7 @@ export {
     resetPassword,
     deleteAccount,
     getFreelancerApplications,
+    getWeeklyApplicationStats,
 };
 
 // Google OAuth controllers

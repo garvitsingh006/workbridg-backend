@@ -17,7 +17,7 @@ const paymentStageSchema = new mongoose.Schema({
   paymentMethod: { type: String },
   paymentType: {
     type: String,
-    enum: ["cashfree", "upi"],
+    enum: ["cashfree", "upi", "subscription"],
     default: "cashfree"
   },
   upiId: { type: String },
@@ -33,18 +33,22 @@ const paymentSchema = new mongoose.Schema({
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Project",
-    required: true,
+    required: function() {
+      return !this.isSubscriptionPayment;
+    },
   },
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    required: function() {
+      return !this.isSubscriptionPayment;
+    },
   },
   freelancerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: function() {
-      return !this.isAdminManagementFee;
+      return !this.isAdminManagementFee && !this.isSubscriptionPayment;
     },
   },
 
@@ -80,6 +84,8 @@ const paymentSchema = new mongoose.Schema({
   },
 
   isAdminManagementFee: { type: Boolean, default: false },
+  isSubscriptionPayment: { type: Boolean, default: false },
+  subscriberId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   moderationId: { type: String, unique: true, sparse: true },
   description: { type: String },
 

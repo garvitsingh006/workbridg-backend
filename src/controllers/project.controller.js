@@ -273,6 +273,22 @@ const applyToProject = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Only freelancers can apply to projects");
     }
     const { projectId } = req.params;
+
+    // Weekly application limit check
+    const freelancer = await User.findById(req.user._id);
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Reset count if last reset was more than a week ago
+    if (!freelancer.weeklyApplicationResetDate || freelancer.weeklyApplicationResetDate < oneWeekAgo) {
+        freelancer.weeklyApplicationCount = 0;
+        freelancer.weeklyApplicationResetDate = now;
+    }
+
+    const weeklyLimit = freelancer.isPremium ? 50 : 5;
+    if (freelancer.weeklyApplicationCount >= weeklyLimit) {
+        throw new ApiError(429, `Weekly application limit reached (${weeklyLimit} applications/week)`);
+    }
     // const { proposalSummary, estimatedDelivery, addOns } = req.body;
     // if (!proposalSummary || !estimatedDelivery) {
     //     throw new ApiError(400, "Proposal summary and estimated delivery are required");
@@ -304,10 +320,15 @@ const applyToProject = asyncHandler(async (req, res) => {
     });
 
     // Add initial system message
+    const premiumTag = freelancer.isPremium ? ' ⭐ [Premium]' : '';
     await chat.addSystemMessage(
-        `${req.user.fullName || req.user.username} has started a discussion for project "${project.title}". Status: Discussion`,
+        `${req.user.fullName || req.user.username}${premiumTag} has started a discussion for project "${project.title}". Status: Discussion`,
         "discussion_started"
     );
+
+    // Increment weekly application count
+    freelancer.weeklyApplicationCount += 1;
+    await freelancer.save();
 
     // Notify the client about the new discussion
     await createNotification(

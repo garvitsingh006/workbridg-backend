@@ -179,7 +179,7 @@ const getProfile = asyncHandler(async (req, res) => {
         const profile = await ProfileModel.findOne({ user: user._id }).populate(
             {
                 path: "user",
-                select: "username role fullName isInterviewed createdAt",
+                select: "username role fullName isInterviewed createdAt isPremium",
             }
         );
 
@@ -258,7 +258,7 @@ const listFreelancerSummaries = asyncHandler(async (req, res) => {
         pipeline.push({
             $project: {
                 _id: 1,
-                user: { username: '$user.username', fullName: '$user.fullName', createdAt: '$user.createdAt' },
+                user: { username: '$user.username', fullName: '$user.fullName', createdAt: '$user.createdAt', isPremium: '$user.isPremium' },
                 location: 1,
                 workField: 1,
                 skills: 1,
@@ -308,7 +308,7 @@ const getProfileByUserId = asyncHandler(async (req, res) => {
 
         const profile = await ProfileModel.findOne({ user: userId }).populate({
             path: "user",
-            select: "username role fullName isInterviewed createdAt",
+            select: "username role fullName isInterviewed createdAt isPremium",
         });
 
         if (!profile || !profile.user) {

@@ -75,6 +75,22 @@ const userSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        isPremium: {
+            type: Boolean,
+            default: false,
+        },
+        premiumSince: {
+            type: Date,
+            default: null,
+        },
+        weeklyApplicationCount: {
+            type: Number,
+            default: 0,
+        },
+        weeklyApplicationResetDate: {
+            type: Date,
+            default: null,
+        },
     },
     { timestamps: true }
 );

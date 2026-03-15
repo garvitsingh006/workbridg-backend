@@ -11,7 +11,8 @@ import { loginUser, registerUser, usernameAvailability, verifyUser, logoutUser, 
     forgotPassword,
     resetPassword,
     deleteAccount,
-    getFreelancerApplications } from "../controllers/user.controller.js";
+    getFreelancerApplications,
+    getWeeklyApplicationStats } from "../controllers/user.controller.js";
 // import {upload} from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkEmailVerified } from "../middlewares/email_verification.middleware.js";
@@ -61,6 +62,7 @@ router.route('/auth/google/login').post(googleLogin)
 
 // freelancer routes
 router.route('/freelancer/applications').get(verifyJWT, checkEmailVerified, getFreelancerApplications)
+router.route('/freelancer/weekly-stats').get(verifyJWT, checkEmailVerified, getWeeklyApplicationStats)
 
 // password reset routes
 router.route("/forgot-password").post(forgotPassword)

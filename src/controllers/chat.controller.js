@@ -142,7 +142,7 @@ const getAllChats = asyncHandler(async (req, res) => {
 
     // Fetch all chats where user is a participant
     const chats = await Chat.find({ participants: userId })
-        .populate("participants", "username _id") // only fetch username and _id
+        .populate("participants", "username _id isPremium role") // include isPremium and role
         .populate({
             path: "project",
             select: "title _id hasRequestedAdminManagement adminManagementRequestedAt createdBy assignedTo"
@@ -272,7 +272,7 @@ const getParticipants = asyncHandler(async (req, res) => {
     const { chatId } = req.params;
     const chat = await Chat.findById(chatId).populate(
         "participants",
-        "username _id"
+        "username _id isPremium role"
     );
     if (!chat) throw new ApiError(404, "Chat not found");
     res.status(200).json(

@@ -494,6 +494,7 @@ const getAllPayments = asyncHandler(async (req, res) => {
     const payments = await Payment.find({})
         .populate("clientId", "username email fullName")
         .populate("freelancerId", "username email fullName")
+        .populate("subscriberId", "username email fullName")
         .populate("projectId", "title status")
         .sort({ createdAt: -1 });
 
@@ -512,7 +513,7 @@ const getUserPayments = asyncHandler(async (req, res) => {
     if (userRole === "client") {
         query.clientId = userId;
     } else if (userRole === "freelancer") {
-        query.freelancerId = userId;
+        query = { $or: [{ freelancerId: userId }, { subscriberId: userId, isSubscriptionPayment: true }] };
     } else {
         throw new ApiError(403, "Invalid user role for fetching payments");
     }
@@ -591,6 +592,51 @@ const updatePaymentForAdminManagement = asyncHandler(async (req, res) => {
     );
 });
 
+const subscribeFreelancer = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    if (req.user.role !== "freelancer") {
+        throw new ApiError(403, "Only freelancers can subscribe");
+    }
+
+    const { User } = await import("../models/user.model.js");
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (user.isPremium) {
+        throw new ApiError(400, "You are already a premium subscriber");
+    }
+
+    // Create subscription payment record
+    const payment = await Payment.create({
+        subscriberId: userId,
+        totalAmount: 299,
+        currency: "INR",
+        platformFee: { serviceCharge: 0, commissionFee: 0 },
+        total: {
+            amount: 299,
+            currency: "INR",
+            status: "paid",
+            customerName: req.user.fullName,
+            customerEmail: req.user.email,
+            paymentType: "subscription",
+            completedAt: new Date(),
+        },
+        overallStatus: "final_paid",
+        isSubscriptionPayment: true,
+        description: "Premium Subscription - ₹299/month",
+    });
+
+    // Mark user as premium
+    user.isPremium = true;
+    user.premiumSince = new Date();
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, { payment, isPremium: true }, "Subscribed successfully")
+    );
+});
+
 export {
     createPaymentRecord,
     createOrder,
@@ -603,4 +649,5 @@ export {
     getAllPayments,
     getUserPayments,
     updatePaymentForAdminManagement,
+    subscribeFreelancer,
 };
